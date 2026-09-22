@@ -24,5 +24,8 @@ dist/
 # macOS
 .DS_Store
 
+# Node (clients/typescript)
+node_modules/
+
 # Agent tooling state
 .pi/

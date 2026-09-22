@@ -1,0 +1,25 @@
+{
+  "name": "@ouijan/laya-client",
+  "version": "0.1.0",
+  "description": "Typed TypeScript client for laya-serve, generated from its OpenAPI spec",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "files": ["src", "openapi.json"],
+  "scripts": {
+    "spec": "cd ../.. && mise exec -- python -m laya_serve.openapi > clients/typescript/openapi.json",
+    "generate": "openapi-typescript ./openapi.json -o ./src/schema.d.ts",
+    "build": "bun run spec && bun run generate",
+    "typecheck": "tsc --noEmit",
+    "check": "bun run typecheck"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.14.0"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.9.0",
+    "typescript": "^5.9.0"
+  }
+}
