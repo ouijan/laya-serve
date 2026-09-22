@@ -7,9 +7,11 @@
 # the baked one is opt-in via --target.
 #
 # The CPU wheel index matters: plain `pip install torch` on Linux drags in
-# ~3GB of CUDA libraries that a CPU image can never use.
+# ~3GB of CUDA libraries that a CPU image can never use. For a GPU image,
+# build with --build-arg TORCH_INDEX=https://pypi.org/simple instead.
 
 ARG PYTHON_VERSION=3.13
+ARG TORCH_INDEX=https://download.pytorch.org/whl/cpu
 
 FROM python:${PYTHON_VERSION}-slim AS builder
 
@@ -23,7 +25,8 @@ RUN uv venv /opt/venv
 ENV VIRTUAL_ENV=/opt/venv
 
 # Its own layer: torch is the slowest part of the build and changes least.
-RUN uv pip install --index-url https://download.pytorch.org/whl/cpu torch
+ARG TORCH_INDEX
+RUN uv pip install --index-url "$TORCH_INDEX" torch
 
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
@@ -61,9 +64,16 @@ CMD ["laya-serve", "--cpu"]
 
 
 # Weights in the image: starts offline in seconds, no volume needed.
+#
+# Downloads the files rather than calling Router.preload, which would load the
+# checkpoint through torch. That matters when this stage is cross-built under
+# QEMU in CI: fetching files is I/O, running torch under emulation is not.
 FROM runtime AS baked
 
-RUN python -c "from laya import Router; Router(max_loaded=1, device='cpu').preload(['english'])"
+RUN python -c "\
+from huggingface_hub import snapshot_download; \
+snapshot_download('convaiinnovations/laya', \
+    ignore_patterns=['multilingual/*', 'typed-decisions/*'])"
 
 
 # Last stage wins when --target is omitted, so plain `docker build .` gets the
