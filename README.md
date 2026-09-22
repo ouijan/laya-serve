@@ -173,6 +173,24 @@ docker build -t laya-serve .                       # 1.15GB, weights on a volume
 docker build -t laya-serve:baked --target baked .  # 2GB, weights in the image
 ```
 
+CI publishes both to GHCR from `main`, each a manifest list covering amd64
+and arm64, so a pull resolves to the right architecture on its own:
+
+```bash
+docker pull ghcr.io/ouijan/laya-serve:cpu
+docker pull ghcr.io/ouijan/laya-serve:cpu-baked
+```
+
+For a GPU image, same Dockerfile with a different wheel index:
+
+```bash
+docker build --build-arg TORCH_INDEX=https://pypi.org/simple \
+  -t laya-serve:gpu .
+```
+
+That one is untested — nothing here has an NVIDIA card. Expect ~5-6GB, and run
+it with `--gpus all` and the nvidia-container-toolkit.
+
 Weights on a volume, downloaded on first boot:
 
 ```bash
