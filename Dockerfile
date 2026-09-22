@@ -6,12 +6,13 @@
 # Docker builds the last stage by default, so the cheap variant is last and
 # the baked one is opt-in via --target.
 #
-# The CPU wheel index matters: plain `pip install torch` on Linux drags in
-# ~3GB of CUDA libraries that a CPU image can never use. For a GPU image,
-# build with --build-arg TORCH_INDEX=https://pypi.org/simple instead.
+# CPU only, deliberately. This server is meant to run alongside Ollama and
+# leave the card to it; `laya-serve --gpu` on the host covers the GPU case.
+#
+# The wheel index is why the image is 1.15GB and not ~6GB: plain
+# `pip install torch` on Linux drags in the whole CUDA stack.
 
 ARG PYTHON_VERSION=3.13
-ARG TORCH_INDEX=https://download.pytorch.org/whl/cpu
 
 FROM python:${PYTHON_VERSION}-slim AS builder
 
@@ -25,8 +26,7 @@ RUN uv venv /opt/venv
 ENV VIRTUAL_ENV=/opt/venv
 
 # Its own layer: torch is the slowest part of the build and changes least.
-ARG TORCH_INDEX
-RUN uv pip install --index-url "$TORCH_INDEX" torch
+RUN uv pip install --index-url https://download.pytorch.org/whl/cpu torch
 
 COPY pyproject.toml README.md ./
 COPY src/ ./src/

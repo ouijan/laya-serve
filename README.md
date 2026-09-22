@@ -166,7 +166,11 @@ Regenerate after changing an endpoint with `cd clients/typescript && bun run bui
 
 ## Docker
 
-CPU only, so the card stays free for Ollama. Two variants from one Dockerfile:
+CPU only, so the card stays free for Ollama. There is no GPU image: the
+container exists to sit next to Ollama, and `laya-serve --gpu` on the host
+covers the GPU case without containerising CUDA.
+
+Two variants from one Dockerfile:
 
 ```bash
 docker build -t laya-serve .                       # 1.15GB, weights on a volume
@@ -180,16 +184,6 @@ and arm64, so a pull resolves to the right architecture on its own:
 docker pull ghcr.io/ouijan/laya-serve:cpu
 docker pull ghcr.io/ouijan/laya-serve:cpu-baked
 ```
-
-For a GPU image, same Dockerfile with a different wheel index:
-
-```bash
-docker build --build-arg TORCH_INDEX=https://pypi.org/simple \
-  -t laya-serve:gpu .
-```
-
-That one is untested — nothing here has an NVIDIA card. Expect ~5-6GB, and run
-it with `--gpus all` and the nvidia-container-toolkit.
 
 Weights on a volume, downloaded on first boot:
 
