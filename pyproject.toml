@@ -11,8 +11,19 @@ dependencies = [
     "pydantic>=2.7",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    # FastAPI's TestClient needs httpx.
+    "httpx>=0.27",
+]
+
 [project.scripts]
 laya-serve = "laya_serve.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
 
 [build-system]
 requires = ["hatchling"]

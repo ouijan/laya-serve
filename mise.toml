@@ -8,8 +8,12 @@ uv = "latest"
 _.python.venv = { path = ".venv", create = true }
 
 [tasks.install]
-description = "Install the package and its dependencies in editable mode"
-run = "uv pip install -e ."
+description = "Install the package with dev dependencies, in editable mode"
+run = "uv pip install -e '.[dev]'"
+
+[tasks.test]
+description = "Run the contract tests (no checkpoint download)"
+run = "pytest"
 
 [tasks.serve]
 description = "Run the server on CPU (no CUDA on Apple Silicon)"

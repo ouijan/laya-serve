@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """Run the documented example against a live server and print the answers.
 
-The payload is pulled from the server's own OpenAPI spec, so the example in
-/docs cannot drift from the one proven to work here.
+This is a demo, not a test: it asserts nothing and needs a running server with
+a real checkpoint loaded. Use it to eyeball real model output. The automated
+contract tests are in tests/ and need neither.
+
+The payload is pulled from the server's own OpenAPI spec, so what /docs shows
+is what this runs.
 
     laya-serve --cpu --models english &
-    python scripts/smoke.py [base_url]
+    python scripts/demo.py [base_url]
 """
 
 import json

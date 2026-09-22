@@ -82,14 +82,16 @@ that has auth. Never expose it to an untrusted network directly.
 | POST   | `/v1/route`     | Routing decision only, no forward pass  |
 
 Interactive docs at `http://host:11500/docs`. The example there is a real
-payload: "Try it out" works unedited. To prove a running server end to end:
+payload: "Try it out" works unedited, and a test asserts that it does.
+
+To see real model output against a running server:
 
 ```bash
-python scripts/smoke.py          # or: python scripts/smoke.py http://your-box:11500
+python scripts/demo.py           # or: python scripts/demo.py http://your-box:11500
 ```
 
-It pulls the example straight out of the server's own spec, so what the docs
-show is exactly what gets run.
+That's a demo, not a test: it prints and asserts nothing. It reads the example
+out of the live server's spec, so what `/docs` shows is what it runs.
 
 ### Matching TypeSafe
 
@@ -180,6 +182,24 @@ User=youruser
 [Install]
 WantedBy=multi-user.target
 ```
+
+## Tests
+
+```bash
+uv pip install -e '.[dev]'
+pytest
+```
+
+22 tests, ~0.1s, no checkpoint download and no GPU: the engine is stubbed with
+laya's recorded output shapes. They cover the response envelope, the answer
+shape of each question type, the laya extras, `state` as string/object/turns,
+routing passthrough, and the 422/500 paths.
+
+Two of them are drift guards rather than behaviour:
+
+- the `/docs` example must be a valid request, and must actually run
+- `clients/typescript/openapi.json` must match the code, so the TypeScript
+  client cannot be generated from a stale spec
 
 ## Caveats
 
