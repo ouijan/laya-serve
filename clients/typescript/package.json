@@ -4,14 +4,26 @@
   "description": "Typed TypeScript client for laya-serve, generated from its OpenAPI spec",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
-  "types": "./src/index.ts",
-  "files": ["src", "openapi.json"],
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "openapi.json"],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ouijan/laya-serve.git",
+    "directory": "clients/typescript"
+  },
   "scripts": {
     "spec": "cd ../.. && mise exec -- python -m laya_serve.openapi > clients/typescript/openapi.json",
-    "generate": "openapi-typescript ./openapi.json -o ./src/schema.d.ts",
-    "build": "bun run spec && bun run generate",
+    "generate": "openapi-typescript ./openapi.json -o ./src/schema.ts",
+    "compile": "tsc -p tsconfig.build.json",
+    "build": "bun run spec && bun run generate && bun run compile",
     "typecheck": "tsc --noEmit",
     "check": "bun run typecheck"
   },

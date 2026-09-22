@@ -1,0 +1,37 @@
+name: Publish client
+
+# Tag the commit you want to ship, e.g. `git tag client-v0.1.1 && git push --tags`.
+# The tag is the release record; the version still comes from package.json.
+on:
+  push:
+    tags: ["client-v*"]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    defaults:
+      run:
+        working-directory: clients/typescript
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+
+      # setup-node only for the registry auth it writes into .npmrc.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: "@ouijan"
+
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run compile
+
+      # npm rather than bun: bun publish does not read setup-node's .npmrc.
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

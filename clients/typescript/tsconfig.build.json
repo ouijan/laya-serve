@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "./dist",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    // Consumers resolve from dist/, which contains .js files, so the emitted
+    // module specifiers have to be real paths rather than bundler-style.
+    "module": "ESNext",
+    "moduleResolution": "bundler"
+  },
+  "exclude": ["dist"]
+}

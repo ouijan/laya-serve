@@ -77,7 +77,7 @@ includes the script/language detection behind the decision.)
 Interactive docs are at `http://localhost:11500/docs`, and the example there
 is a real payload: "Try it out" works without editing it.
 
-From TypeScript:
+From TypeScript ([install](clients/typescript#install)):
 
 ```ts
 import { createLayaClient, isChoice } from "@ouijan/laya-client";
