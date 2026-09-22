@@ -24,12 +24,16 @@ jobs:
         with:
           enable-cache: true
 
+      # A venv, not --system: the runner's Python is externally managed, and
+      # it is 3.12 rather than the 3.13 mise.toml pins.
       - name: Install
-        run: uv pip install --system -e '.[dev]'
+        run: |
+          uv venv --python 3.13
+          uv pip install -e '.[dev]'
 
       # Includes the guard that clients/typescript/openapi.json matches the code.
       - name: Test
-        run: pytest
+        run: uv run --no-sync pytest
 
   build:
     needs: test
