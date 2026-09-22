@@ -5,26 +5,32 @@ apps can call it over the network. Runs alongside Ollama on the same box.
 
 ## Install
 
-Needs Python 3.10–3.13 (torch has no 3.14 wheels yet). Install into a virtual
-environment — a Homebrew Python will refuse a system-wide install (PEP 668).
+Needs Python 3.10–3.13 (torch has no 3.14 wheels yet). `mise.toml` pins the
+interpreter and `uv`, and creates `.venv` on `cd` into the directory.
 
 ```bash
 cd laya-serve
-uv venv --python 3.13
-uv pip install -e .
+mise trust
+mise install     # fetches python 3.13 + uv, creates .venv
+mise run install # uv pip install -e .
 ```
 
-Without `uv`, the stdlib equivalent:
+Without mise, any venv on Python ≤3.13 works. Note a Homebrew Python refuses a
+system-wide install (PEP 668), so the venv is not optional:
 
 ```bash
-python3.13 -m venv .venv
-.venv/bin/pip install -e .
+uv venv --python 3.13 && uv pip install -e .
+# or: python3.13 -m venv .venv && .venv/bin/pip install -e .
 ```
 
 ## Run
 
-Either activate the venv (`source .venv/bin/activate`) or call the script
-directly as `./.venv/bin/laya-serve`.
+With mise activated in your shell, `.venv` is on `PATH` automatically inside
+this directory. Otherwise `source .venv/bin/activate` or call
+`./.venv/bin/laya-serve` directly.
+
+On Apple Silicon use `--cpu`: the engine only checks `torch.cuda`, so there is
+no MPS path and `auto` silently lands on CPU anyway.
 
 ```bash
 # Defaults: 127.0.0.1:11500, auto device, english + multilingual, fp16 on GPU

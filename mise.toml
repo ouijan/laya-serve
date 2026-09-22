@@ -1,0 +1,16 @@
+[tools]
+# torch has no 3.14 wheels yet; pyproject caps requires-python at <3.14 to match.
+python = "3.13"
+uv = "latest"
+
+[env]
+# Auto-create and activate .venv on cd into this directory.
+_.python.venv = { path = ".venv", create = true }
+
+[tasks.install]
+description = "Install the package and its dependencies in editable mode"
+run = "uv pip install -e ."
+
+[tasks.serve]
+description = "Run the server on CPU (no CUDA on Apple Silicon)"
+run = "laya-serve --cpu"
