@@ -1,11 +1,33 @@
 # @ouijan/laya-client
 
-Typed client for `laya-serve`. The types in `src/schema.d.ts` are generated
+Typed client for `laya-serve`. The types in `src/schema.ts` are generated
 from the server's own OpenAPI spec, so they cannot drift from the API.
 
 Names mirror the [TypeSafe SDK](https://docs.typesafe.ai/sdk) — `systemOne`,
 `ChoiceAnswer`, `ScoreAnswer`, `NoulAnswer` — so swapping between this server
 and the hosted Jev API is a change of import, not of code.
+
+## Install
+
+Published to GitHub Packages. The repo is private, so consumers need a token
+with `read:packages` in their `.npmrc`:
+
+```ini
+# .npmrc
+@ouijan:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+```
+
+```bash
+npm add @ouijan/laya-client   # or bun add / pnpm add
+```
+
+The package ships compiled JS and `.d.ts`, so it works under Node, bundlers
+and bun alike. Inside this repo, depend on it by path instead:
+
+```bash
+bun add file:../laya-serve/clients/typescript
+```
 
 ## Use
 
@@ -74,9 +96,12 @@ createLayaClient({
 ## Regenerating after an API change
 
 ```bash
-bun run build   # dumps openapi.json from the Python package, then regenerates
+bun run build   # spec -> types -> dist
 ```
+
+`bun run spec` alone rewrites `openapi.json` and needs the Python package;
+`bun run compile` alone rebuilds `dist/` and does not.
 
 `bun run spec` alone rewrites `openapi.json`; it imports the app but never
 starts it, so no checkpoint is downloaded and no GPU is needed. Commit both
-`openapi.json` and `src/schema.d.ts` so consumers don't need Python.
+`openapi.json` and `src/schema.ts` so consumers don't need Python.

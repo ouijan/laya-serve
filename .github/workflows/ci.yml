@@ -35,6 +35,26 @@ jobs:
       - name: Test
         run: uv run --no-sync pytest
 
+  # Nothing else checks the client compiles; the spec-drift test only proves
+  # openapi.json matches the server.
+  client:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clients/typescript
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run compile
+
+      # dist/index.d.ts importing a file that was never emitted typechecks
+      # inside the package but breaks every consumer, so check the output.
+      - name: Check the built package resolves
+        run: test -f dist/index.js && test -f dist/index.d.ts && test -f dist/schema.d.ts
+
   build:
     needs: test
     runs-on: ubuntu-latest
