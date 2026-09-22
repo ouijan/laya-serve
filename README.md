@@ -1,77 +1,94 @@
 # laya-serve
 
-A slim HTTP wrapper around [Laya](https://github.com/NandhaKishorM/laya) so remote
-apps can call it over the network. Runs alongside Ollama on the same box.
+An HTTP server for [Laya](https://github.com/NandhaKishorM/laya), so apps that
+aren't Python can use it.
 
-## Install
+## Why this exists
 
-Needs Python 3.10–3.13 (torch has no 3.14 wheels yet). `mise.toml` pins the
-interpreter and `uv`, and creates `.venv` on `cd` into the directory.
+Laya is a System One decision engine: you give it a state and some typed
+questions, it answers all of them in one forward pass — no text generation, so
+nothing to parse and nothing to hallucinate. Questions come in three shapes,
+`choice`, `score` and `noul`, and answers come back with probabilities and
+calibrated confidence.
 
-```bash
-cd laya-serve
-mise trust
-mise install     # fetches python 3.13 + uv, creates .venv
-mise run install # uv pip install -e .
-```
+It ships as a Python library. That's a problem if your application is a
+TypeScript service, or if you want one box holding the weights while several
+apps call it. This repo puts an HTTP API in front, with:
 
-Without mise, any venv on Python ≤3.13 works. Note a Homebrew Python refuses a
-system-wide install (PEP 668), so the venv is not optional:
+- a request and response shape matching [TypeSafe's System One API][ts], whose
+  Jev model uses the same three primitives, so client code ports between them
+- a generated [TypeScript client](clients/typescript) typed from the server's
+  own OpenAPI spec
+- a CPU-only Docker image, for running it on a machine with no GPU
 
-```bash
-uv venv --python 3.13 && uv pip install -e .
-# or: python3.13 -m venv .venv && .venv/bin/pip install -e .
-```
+Laya's `Router` picks between three checkpoints per request based on the
+script and language it detects, and that decision is exposed here too.
 
-## Run
+[ts]: https://docs.typesafe.ai/introduction
 
-With mise activated in your shell, `.venv` is on `PATH` automatically inside
-this directory. Otherwise `source .venv/bin/activate` or call
-`./.venv/bin/laya-serve` directly.
+## Getting started
 
-On Apple Silicon use `--cpu`: the engine only checks `torch.cuda`, so there is
-no MPS path and `auto` silently lands on CPU anyway.
-
-```bash
-# Defaults: 127.0.0.1:11500, auto device, english + multilingual
-laya-serve
-
-# Listen on the LAN
-laya-serve --host 0.0.0.0
-```
-
-### Run modes
-
-| Flag      | Behaviour                                             |
-| --------- | ----------------------------------------------------- |
-| *(none)*  | GPU if CUDA is present, otherwise CPU. Never fails.    |
-| `--gpu`   | GPU only. **Refuses to start** if CUDA is unavailable. |
-| `--cpu`   | CPU only. Leaves the card entirely to Ollama.          |
+The image has the `english` checkpoint baked in, so this needs no volume, no
+model download and no GPU:
 
 ```bash
-# Share the GPU politely with Ollama: one checkpoint only
-laya-serve --host 0.0.0.0 --gpu --models english
-
-# Zero VRAM contention — slower (~200-460ms) but the card stays free
-laya-serve --host 0.0.0.0 --cpu
+docker run -d -p 127.0.0.1:11500:11500 ghcr.io/ouijan/laya-serve
 ```
 
-`--gpu` failing loudly is the point: on `auto`, a driver hiccup or a CPU-only
-torch wheel gets you a server that quietly runs 10x slower. If you meant GPU,
-say so and find out at startup.
+Ask it something:
 
-`/health` reports what you actually got:
+```bash
+curl -s localhost:11500/v1/systemone -H 'Content-Type: application/json' -d '{
+  "state": "We were billed twice for March and nobody has replied in 3 days. If this is not fixed we will move to a competitor.",
+  "questions": {
+    "department": {
+      "type": "choice",
+      "instructions": "Which team should handle this?",
+      "criteria": {"billing": "payments, refunds", "technical": "bugs"}
+    },
+    "churn_risk": {
+      "type": "noul",
+      "instructions": "The customer threatens to leave"
+    }
+  }
+}'
+```
 
 ```json
-{ "ok": true, "device": "cuda", "device_requested": "auto",
-  "gpu": "NVIDIA GeForce RTX 4080", "models": ["english"] }
+{
+  "model": "laya-rl-agent",
+  "answers": {
+    "department": {
+      "type": "choice",
+      "choice": "billing",
+      "probabilities": { "billing": 0.9452, "technical": 0.0548 },
+      "confidence": 0.6936
+    },
+    "churn_risk": { "type": "noul", "noul": 0.8761, "confidence": 0.8761 }
+  },
+  "usage": { "input_tokens": 107, "output_tokens": 0 },
+  "routing": { "model": "english", "reason": "English Latin text" }
+}
 ```
 
-Every flag has an env equivalent: `LAYA_HOST`, `LAYA_PORT`, `LAYA_DEVICE`
-(`auto`/`cpu`/`cuda`), `LAYA_MODELS`.
+(Trimmed: each answer also carries `action.act_probability`, and `routing`
+includes the script/language detection behind the decision.)
 
-There is no auth. Bind to `127.0.0.1` (the default), or put it behind something
-that has auth. Never expose it to an untrusted network directly.
+Interactive docs are at `http://localhost:11500/docs`, and the example there
+is a real payload: "Try it out" works without editing it.
+
+From TypeScript:
+
+```ts
+import { createLayaClient, isChoice } from "@ouijan/laya-client";
+
+const laya = createLayaClient({ baseUrl: "http://localhost:11500" });
+const { answers } = await laya.systemOne({ state, questions });
+
+if (isChoice(answers.department)) {
+  console.log(answers.department.choice); // "billing"
+}
+```
 
 ## Endpoints
 
@@ -81,27 +98,12 @@ that has auth. Never expose it to an untrusted network directly.
 | POST   | `/v1/systemone` | Inference. This is the one you want.    |
 | POST   | `/v1/route`     | Routing decision only, no forward pass  |
 
-Interactive docs at `http://host:11500/docs`. The example there is a real
-payload: "Try it out" works unedited, and a test asserts that it does.
-
-To see real model output against a running server:
-
-```bash
-python scripts/demo.py           # or: python scripts/demo.py http://your-box:11500
-```
-
-That's a demo, not a test: it prints and asserts nothing. It reads the example
-out of the live server's spec, so what `/docs` shows is what it runs.
-
 ### Matching TypeSafe
 
-The request and response bodies follow [TypeSafe's System One API][ts], whose
-Jev model shares laya's three primitives (`choice`, `score`, `noul`). Same
+Request and response bodies follow [TypeSafe's System One API][ts]: same
 `state` + `questions` in, same `{ model, answers, usage }` out.
 
-[ts]: https://docs.typesafe.ai/introduction
-
-laya returns three things Jev has no field for. They're kept as a superset,
+Laya returns three things Jev has no field for. They're kept as a superset,
 since strict clients ignore unknown keys:
 
 | Extra                    | What it gives you                            |
@@ -115,7 +117,7 @@ One known divergence: top-level `model` is laya's internal agent name
 
 ### Routing
 
-laya bundles three checkpoints and picks one per request without loading
+Laya bundles three checkpoints and picks one per request without loading
 anything. Precedence: `model` > `task` > question ids matching a
 typed-decisions workflow > `lang` > detected script/language > default.
 `reason` says which rule fired:
@@ -128,97 +130,107 @@ curl -s localhost:11500/v1/route -H 'Content-Type: application/json' \
 #  "reason": "non-Latin script (cyrillic, 100% of letters); ..."}
 ```
 
-## Calling it from TypeScript
+The English checkpoint scores near zero on non-Latin scripts while staying
+confident, so this routing is load-bearing rather than an optimisation. See
+the [upstream benchmarks](https://github.com/NandhaKishorM/laya#why-route-the-evidence).
 
-Use the generated client in [`clients/typescript`](clients/typescript) 
-types come from this server's OpenAPI spec, so they can't drift:
+## TypeScript client
 
-Type names mirror the TypeSafe SDK, so moving between this and the hosted API
-is a change of import rather than of code.
+[`clients/typescript`](clients/typescript) is generated from this server's
+OpenAPI spec, so the types can't drift from the API. Names mirror the TypeSafe
+SDK, so moving between this and the hosted API is a change of import.
 
 ```ts
-import { createLayaClient, isChoice } from "@ouijan/laya-client";
-
-const laya = createLayaClient({ baseUrl: "http://your-box:11500" });
-
 const { answers, routing, usage } = await laya.systemOne({
   state: "We were billed twice for March. We'll move to a competitor.",
   questions: {
     department: {
       type: "choice",
       instructions: "Which team should handle this?",
-      criteria: { billing: "invoices, refunds", technical: "bugs", sales: "pricing" },
+      criteria: { billing: "invoices, refunds", technical: "bugs" },
     },
     churn_risk: { type: "noul", instructions: "The customer threatens to leave" },
   },
 });
-
-const department = answers.department;
-if (isChoice(department)) {
-  console.log(department.choice, department.confidence); // "billing" 0.93
-}
 ```
 
-`answers` is a discriminated union on `type`: narrow with `isChoice`, `isScore`
-or `isNoul` and the remaining fields follow.
+`answers` is a discriminated union on `type`: narrow with `isChoice`,
+`isScore` or `isNoul` and the remaining fields follow.
 
-Regenerate after changing an endpoint with `cd clients/typescript && bun run build`.
+Regenerate after changing an endpoint:
+
+```bash
+cd clients/typescript && bun run build
+```
 
 ## Docker
 
-CPU only, so the card stays free for Ollama. There is no GPU image: the
-container exists to sit next to Ollama, and `laya-serve --gpu` on the host
-covers the GPU case without containerising CUDA.
-
-Two variants from one Dockerfile:
+Published from `main` as a manifest list covering amd64 and arm64, so a pull
+resolves to the right architecture. Build it yourself with:
 
 ```bash
-docker build -t laya-serve .                       # 1.15GB, weights on a volume
-docker build -t laya-serve:baked --target baked .  # 2GB, weights in the image
+docker build -t laya-serve .
 ```
 
-CI publishes both to GHCR from `main`, each a manifest list covering amd64
-and arm64, so a pull resolves to the right architecture on its own:
+CPU only, deliberately: the container is meant to sit next to Ollama and leave
+the card to it. For GPU, run on the host with `--gpu` rather than
+containerising CUDA. The CPU wheel index in the Dockerfile is why the image is
+2GB and not ~7GB — a plain `pip install torch` on Linux pulls the whole CUDA
+stack.
+
+Other checkpoints download at runtime. Mount a volume at `HF_HOME` to keep
+them between runs:
 
 ```bash
-docker pull ghcr.io/ouijan/laya-serve:cpu
-docker pull ghcr.io/ouijan/laya-serve:cpu-baked
-```
-
-Weights on a volume, downloaded on first boot:
-
-```bash
-docker run -d --name laya \
-  -p 127.0.0.1:11500:11500 \
+docker run -d -p 127.0.0.1:11500:11500 \
+  -e LAYA_MODELS=english,multilingual \
   -v laya-models:/var/cache/huggingface \
-  laya-serve
+  ghcr.io/ouijan/laya-serve
 ```
 
-The baked variant needs no volume and no network:
-
-```bash
-docker run -d --network none laya-serve:baked
-```
+`HEALTHCHECK` reports healthy only once a checkpoint is resident, so a
+container still downloading one isn't sent traffic it can't serve.
 
 Publish to `127.0.0.1` as above unless you mean to expose it. The container
 listens on `0.0.0.0` because it has to, and there is no auth.
 
-`HEALTHCHECK` polls `/health` and only reports healthy once a checkpoint is
-resident, so the container stays unhealthy while a first download runs rather
-than accepting traffic it can't serve. `start-period` allows 3 minutes.
+## Running on the host
 
-Configure with the same env vars as the CLI; the image defaults to
-`LAYA_DEVICE=cpu` and `LAYA_MODELS=english`:
+Needs Python 3.10–3.13 (torch has no 3.14 wheels yet). `mise.toml` pins the
+interpreter and `uv`, and creates `.venv` on `cd` into the directory:
 
 ```bash
-docker run -e LAYA_MODELS=english,multilingual laya-serve
+mise trust
+mise install      # python 3.13 + uv, creates .venv
+mise run install  # uv pip install -e '.[dev]'
+laya-serve --cpu
 ```
 
-The CPU wheel index in the Dockerfile is not incidental. A plain
-`pip install torch` on Linux pulls ~3GB of CUDA libraries that a CPU image can
-never use; the image ships `torch 2.14.0+cpu` and zero `nvidia-*` packages.
+Without mise, any venv on Python ≤3.13 works. A Homebrew Python refuses a
+system-wide install (PEP 668), so the venv isn't optional:
 
-## Running as a service
+```bash
+uv venv --python 3.13 && uv pip install -e .
+```
+
+### Run modes
+
+| Flag      | Behaviour                                             |
+| --------- | ----------------------------------------------------- |
+| *(none)*  | GPU if CUDA is present, otherwise CPU. Never fails.    |
+| `--gpu`   | GPU only. **Refuses to start** if CUDA is unavailable. |
+| `--cpu`   | CPU only. Leaves the card entirely to Ollama.          |
+
+`--gpu` failing loudly is the point: on the default, a driver hiccup or a
+CPU-only torch wheel gets you a server that quietly runs 10x slower.
+
+On Apple Silicon use `--cpu`. The engine only checks `torch.cuda`, so there's
+no MPS path and the default lands on CPU anyway.
+
+Every flag has an env equivalent: `LAYA_HOST`, `LAYA_PORT`, `LAYA_DEVICE`
+(`auto`/`cpu`/`cuda`), `LAYA_MODELS`.
+
+### As a service
 
 Start it before Ollama so Ollama sizes its GPU offload around the resident
 weights. `/etc/systemd/system/laya-serve.service`:
@@ -237,11 +249,10 @@ User=youruser
 WantedBy=multi-user.target
 ```
 
-## Tests
+## Development
 
 ```bash
-uv pip install -e '.[dev]'
-pytest
+mise run test   # or: pytest
 ```
 
 22 tests, ~0.1s, no checkpoint download and no GPU: the engine is stubbed with
@@ -249,11 +260,20 @@ laya's recorded output shapes. They cover the response envelope, the answer
 shape of each question type, the laya extras, `state` as string/object/turns,
 routing passthrough, and the 422/500 paths.
 
-Two of them are drift guards rather than behaviour:
+Two are drift guards rather than behaviour:
 
 - the `/docs` example must be a valid request, and must actually run
 - `clients/typescript/openapi.json` must match the code, so the TypeScript
-  client cannot be generated from a stale spec
+  client can't be generated from a stale spec
+
+To see real model output against a running server:
+
+```bash
+python scripts/demo.py   # or: python scripts/demo.py http://your-box:11500
+```
+
+That's a demo, not a test: it prints and asserts nothing. It reads the example
+out of the live server's spec, so what `/docs` shows is what it runs.
 
 ## Caveats
 
@@ -262,3 +282,10 @@ Two of them are drift guards rather than behaviour:
   Fine for low-hundreds of req/min; put a queue in front if you need more.
 - Base checkpoints score near chance on typed decisions zero-shot. Fine-tune
   before trusting the numbers.
+- Laya warns on load that some checkpoints ship temperatures outside the
+  calibrated range. Treat `confidence` from those buckets as uncalibrated.
+
+## Credits
+
+Laya is by [NandhaKishorM](https://github.com/NandhaKishorM/laya) (Apache-2.0).
+This repo is only the HTTP layer.
