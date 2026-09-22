@@ -1,0 +1,25 @@
+# Virtual environments
+.venv/
+venv/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Build artefacts
+build/
+dist/
+*.egg-info/
+
+# Tooling caches
+.uv/
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# Environment / secrets
+.env
+.env.*
+
+# macOS
+.DS_Store
