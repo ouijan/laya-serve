@@ -21,24 +21,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/predict": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Predict */
-        post: operations["predict_predict_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/route": {
+    "/v1/route": {
         parameters: {
             query?: never;
             header?: never;
@@ -51,7 +34,24 @@ export interface paths {
          * Route
          * @description Routing decision only — no forward pass, sub-millisecond.
          */
-        post: operations["route_route_post"];
+        post: operations["route_v1_route_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/systemone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** System One */
+        post: operations["system_one_v1_systemone_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -62,6 +62,42 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * Action
+         * @description laya extra: how strongly the model would act on this answer.
+         */
+        Action: {
+            /** Act Probability */
+            act_probability: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** ChoiceAnswer */
+        ChoiceAnswer: {
+            action?: components["schemas"]["Action"] | null;
+            /**
+             * Choice
+             * @description The selected option key
+             */
+            choice: string;
+            /**
+             * Confidence
+             * @description How peaked the distribution is, 0-1
+             */
+            confidence: number;
+            /**
+             * Probabilities
+             * @description Distribution over your options
+             */
+            probabilities: {
+                [key: string]: number;
+            };
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "choice";
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -86,42 +122,172 @@ export interface components {
             /** Ok */
             ok: boolean;
         };
-        /** PredictRequest */
-        PredictRequest: {
+        /** NoulAnswer */
+        NoulAnswer: {
+            action?: components["schemas"]["Action"] | null;
+            /** Confidence */
+            confidence?: number | null;
             /**
-             * Model
-             * @description Force a checkpoint; omit to auto-route
+             * Noul
+             * @description Probability the statement is true, 0-1
              */
-            model?: string | null;
+            noul: number;
             /**
-             * Questions
-             * @description Typed questions keyed by name
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
-            questions: {
-                [key: string]: unknown;
-            };
-            /**
-             * State
-             * @description Any dict: text, email, ticket, JSON doc
-             */
-            state: {
-                [key: string]: unknown;
-            };
+            type: "noul";
         };
-        /** PredictResponse */
-        PredictResponse: {
-            /** Answers */
-            answers: {
-                [key: string]: unknown;
-            };
-            routing?: components["schemas"]["Routing"] | null;
+        /**
+         * Question
+         * @description One typed question. Shape is identical to Jev's.
+         */
+        Question: {
+            /**
+             * Criteria
+             * @description choice: {option: meaning}. score: ordered levels, low to high. noul: optional clarification of yes and no.
+             */
+            criteria?: {
+                [key: string]: string;
+            } | string[] | null;
+            /**
+             * Instructions
+             * @description The judgement to make; a string, object or list
+             */
+            instructions: unknown;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "choice" | "score" | "noul";
+        } & {
+            [key: string]: unknown;
         };
-        /** Routing */
+        /**
+         * Routing
+         * @description laya extra: which checkpoint served the request, and why.
+         */
         Routing: {
             /** Model */
             model?: string | null;
             /** Reason */
             reason?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** ScoreAnswer */
+        ScoreAnswer: {
+            action?: components["schemas"]["Action"] | null;
+            /** Confidence */
+            confidence: number;
+            /**
+             * Legend
+             * @description Your levels, keyed by index
+             */
+            legend: {
+                [key: string]: string;
+            };
+            /**
+             * Probabilities
+             * @description Distribution over levels
+             */
+            probabilities: {
+                [key: string]: number;
+            };
+            /**
+             * Score
+             * @description Position along your levels; may fall between two
+             */
+            score: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "score";
+        };
+        /**
+         * SystemOneRequest
+         * @example {
+         *       "questions": {
+         *         "churn_risk": {
+         *           "instructions": "The customer threatens to leave for a competitor",
+         *           "type": "noul"
+         *         },
+         *         "department": {
+         *           "criteria": {
+         *             "billing": "Payment or subscription issues",
+         *             "sales": "Pricing or account questions",
+         *             "technical": "Bugs or integration problems"
+         *           },
+         *           "instructions": "Which team should handle this?",
+         *           "type": "choice"
+         *         },
+         *         "frustration": {
+         *           "criteria": [
+         *             "Calm, just stating facts",
+         *             "Frustrated but civil",
+         *             "Very angry, strong language"
+         *           ],
+         *           "instructions": "How frustrated the customer appears",
+         *           "type": "score"
+         *         }
+         *       },
+         *       "state": "Hi, we were billed twice for March and I've had no reply in 3 days. If this isn't fixed we'll move to a competitor."
+         *     }
+         */
+        SystemOneRequest: {
+            /**
+             * Lang
+             * @description Routing hint, e.g. 'en'; otherwise detected
+             */
+            lang?: string | null;
+            /**
+             * Model
+             * @description Force a checkpoint; omit to auto-route
+             */
+            model?: ("english" | "multilingual" | "typed-decisions") | null;
+            /**
+             * Questions
+             * @description Typed questions keyed by the id you want back in `answers`
+             */
+            questions: {
+                [key: string]: components["schemas"]["Question"];
+            };
+            /**
+             * State
+             * @description Text, JSON object, or conversation turns
+             */
+            state: string | {
+                [key: string]: unknown;
+            } | unknown[];
+            /**
+             * Task
+             * @description Routing hint, e.g. 'typed-decisions'
+             */
+            task?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** SystemOneResponse */
+        SystemOneResponse: {
+            /** Answers */
+            answers: {
+                [key: string]: components["schemas"]["ChoiceAnswer"] | components["schemas"]["ScoreAnswer"] | components["schemas"]["NoulAnswer"];
+            };
+            /**
+             * Model
+             * @description The checkpoint that answered
+             */
+            model: string;
+            routing?: components["schemas"]["Routing"] | null;
+            usage: components["schemas"]["Usage"];
+        };
+        /** Usage */
+        Usage: {
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -165,7 +331,7 @@ export interface operations {
             };
         };
     };
-    predict_predict_post: {
+    route_v1_route_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -174,7 +340,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PredictRequest"];
+                "application/json": components["schemas"]["SystemOneRequest"];
             };
         };
         responses: {
@@ -184,7 +350,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PredictResponse"];
+                    "application/json": components["schemas"]["Routing"];
                 };
             };
             /** @description Validation Error */
@@ -198,7 +364,7 @@ export interface operations {
             };
         };
     };
-    route_route_post: {
+    system_one_v1_systemone_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -207,7 +373,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PredictRequest"];
+                "application/json": components["schemas"]["SystemOneRequest"];
             };
         };
         responses: {
@@ -217,7 +383,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Routing"];
+                    "application/json": components["schemas"]["SystemOneResponse"];
                 };
             };
             /** @description Validation Error */

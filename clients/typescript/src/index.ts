@@ -1,9 +1,21 @@
 import createClient from "openapi-fetch";
 import type { components, paths } from "./schema";
 
-export type PredictRequest = components["schemas"]["PredictRequest"];
-export type PredictResponse = components["schemas"]["PredictResponse"];
+/**
+ * Type names mirror the TypeSafe SDK (docs.typesafe.ai) so moving between
+ * this server and the hosted API is a change of import, not of code.
+ */
+export type Question = components["schemas"]["Question"];
+export type SystemOneRequest = components["schemas"]["SystemOneRequest"];
+export type SystemOneResponse = components["schemas"]["SystemOneResponse"];
+export type ChoiceAnswer = components["schemas"]["ChoiceAnswer"];
+export type ScoreAnswer = components["schemas"]["ScoreAnswer"];
+export type NoulAnswer = components["schemas"]["NoulAnswer"];
+export type Answer = ChoiceAnswer | ScoreAnswer | NoulAnswer;
+export type Usage = components["schemas"]["Usage"];
 export type HealthResponse = components["schemas"]["HealthResponse"];
+
+/** laya extra: which checkpoint served the request, and why. */
 export type Routing = components["schemas"]["Routing"];
 
 export interface LayaClientOptions {
@@ -43,22 +55,22 @@ function unwrap<T>(result: FetchResult<T>): T {
 }
 
 /**
- * Typed client for laya-serve. Types come from the server's own OpenAPI spec,
- * so they cannot drift: `bun run build` regenerates them.
+ * Typed client for laya-serve. Types are generated from the server's own
+ * OpenAPI spec, so they cannot drift: `bun run build` regenerates them.
  */
 export function createLayaClient(options: LayaClientOptions) {
 	const { baseUrl, fetch } = options;
 	const client = createClient<paths>(fetch ? { baseUrl, fetch } : { baseUrl });
 
 	return {
-		/** Native inference. Omit `model` to let the router choose. */
-		async predict(body: PredictRequest): Promise<PredictResponse> {
-			return unwrap(await client.POST("/predict", { body }));
+		/** Evaluate typed questions against a state in one forward pass. */
+		async systemOne(body: SystemOneRequest): Promise<SystemOneResponse> {
+			return unwrap(await client.POST("/v1/systemone", { body }));
 		},
 
-		/** Routing decision only, no forward pass. */
-		async route(body: PredictRequest): Promise<Routing> {
-			return unwrap(await client.POST("/route", { body }));
+		/** Which checkpoint would serve this, without a forward pass. */
+		async route(body: SystemOneRequest): Promise<Routing> {
+			return unwrap(await client.POST("/v1/route", { body }));
 		},
 
 		/** Readiness, resident checkpoints and resolved device. */
@@ -69,3 +81,16 @@ export function createLayaClient(options: LayaClientOptions) {
 }
 
 export type LayaClient = ReturnType<typeof createLayaClient>;
+
+/** Narrow an answer by its `type` discriminator. */
+export function isChoice(answer: Answer): answer is ChoiceAnswer {
+	return answer.type === "choice";
+}
+
+export function isScore(answer: Answer): answer is ScoreAnswer {
+	return answer.type === "score";
+}
+
+export function isNoul(answer: Answer): answer is NoulAnswer {
+	return answer.type === "noul";
+}

@@ -1,6 +1,66 @@
 {
   "components": {
     "schemas": {
+      "Action": {
+        "additionalProperties": true,
+        "description": "laya extra: how strongly the model would act on this answer.",
+        "properties": {
+          "act_probability": {
+            "title": "Act Probability",
+            "type": "number"
+          }
+        },
+        "required": [
+          "act_probability"
+        ],
+        "title": "Action",
+        "type": "object"
+      },
+      "ChoiceAnswer": {
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Action"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "choice": {
+            "description": "The selected option key",
+            "title": "Choice",
+            "type": "string"
+          },
+          "confidence": {
+            "description": "How peaked the distribution is, 0-1",
+            "title": "Confidence",
+            "type": "number"
+          },
+          "probabilities": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Distribution over your options",
+            "title": "Probabilities",
+            "type": "object"
+          },
+          "type": {
+            "const": "choice",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "choice",
+          "probabilities",
+          "confidence"
+        ],
+        "title": "ChoiceAnswer",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -64,65 +124,96 @@
         "title": "HealthResponse",
         "type": "object"
       },
-      "PredictRequest": {
+      "NoulAnswer": {
         "properties": {
-          "model": {
+          "action": {
             "anyOf": [
               {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Force a checkpoint; omit to auto-route",
-            "title": "Model"
-          },
-          "questions": {
-            "additionalProperties": true,
-            "description": "Typed questions keyed by name",
-            "title": "Questions",
-            "type": "object"
-          },
-          "state": {
-            "additionalProperties": true,
-            "description": "Any dict: text, email, ticket, JSON doc",
-            "title": "State",
-            "type": "object"
-          }
-        },
-        "required": [
-          "state",
-          "questions"
-        ],
-        "title": "PredictRequest",
-        "type": "object"
-      },
-      "PredictResponse": {
-        "properties": {
-          "answers": {
-            "additionalProperties": true,
-            "title": "Answers",
-            "type": "object"
-          },
-          "routing": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Routing"
+                "$ref": "#/components/schemas/Action"
               },
               {
                 "type": "null"
               }
             ]
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "noul": {
+            "description": "Probability the statement is true, 0-1",
+            "title": "Noul",
+            "type": "number"
+          },
+          "type": {
+            "const": "noul",
+            "title": "Type",
+            "type": "string"
           }
         },
         "required": [
-          "answers"
+          "type",
+          "noul"
         ],
-        "title": "PredictResponse",
+        "title": "NoulAnswer",
+        "type": "object"
+      },
+      "Question": {
+        "additionalProperties": true,
+        "description": "One typed question. Shape is identical to Jev's.",
+        "properties": {
+          "criteria": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "choice: {option: meaning}. score: ordered levels, low to high. noul: optional clarification of yes and no.",
+            "title": "Criteria"
+          },
+          "instructions": {
+            "description": "The judgement to make; a string, object or list",
+            "title": "Instructions"
+          },
+          "type": {
+            "enum": [
+              "choice",
+              "score",
+              "noul"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "instructions"
+        ],
+        "title": "Question",
         "type": "object"
       },
       "Routing": {
+        "additionalProperties": true,
+        "description": "laya extra: which checkpoint served the request, and why.",
         "properties": {
           "model": {
             "anyOf": [
@@ -148,6 +239,237 @@
           }
         },
         "title": "Routing",
+        "type": "object"
+      },
+      "ScoreAnswer": {
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Action"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confidence": {
+            "title": "Confidence",
+            "type": "number"
+          },
+          "legend": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Your levels, keyed by index",
+            "title": "Legend",
+            "type": "object"
+          },
+          "probabilities": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Distribution over levels",
+            "title": "Probabilities",
+            "type": "object"
+          },
+          "score": {
+            "description": "Position along your levels; may fall between two",
+            "title": "Score",
+            "type": "number"
+          },
+          "type": {
+            "const": "score",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "score",
+          "legend",
+          "probabilities",
+          "confidence"
+        ],
+        "title": "ScoreAnswer",
+        "type": "object"
+      },
+      "SystemOneRequest": {
+        "additionalProperties": true,
+        "examples": [
+          {
+            "questions": {
+              "churn_risk": {
+                "instructions": "The customer threatens to leave for a competitor",
+                "type": "noul"
+              },
+              "department": {
+                "criteria": {
+                  "billing": "Payment or subscription issues",
+                  "sales": "Pricing or account questions",
+                  "technical": "Bugs or integration problems"
+                },
+                "instructions": "Which team should handle this?",
+                "type": "choice"
+              },
+              "frustration": {
+                "criteria": [
+                  "Calm, just stating facts",
+                  "Frustrated but civil",
+                  "Very angry, strong language"
+                ],
+                "instructions": "How frustrated the customer appears",
+                "type": "score"
+              }
+            },
+            "state": "Hi, we were billed twice for March and I've had no reply in 3 days. If this isn't fixed we'll move to a competitor."
+          }
+        ],
+        "properties": {
+          "lang": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Routing hint, e.g. 'en'; otherwise detected",
+            "title": "Lang"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "enum": [
+                  "english",
+                  "multilingual",
+                  "typed-decisions"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Force a checkpoint; omit to auto-route",
+            "title": "Model"
+          },
+          "questions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Question"
+            },
+            "description": "Typed questions keyed by the id you want back in `answers`",
+            "title": "Questions",
+            "type": "object"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "items": {},
+                "type": "array"
+              }
+            ],
+            "description": "Text, JSON object, or conversation turns",
+            "title": "State"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Routing hint, e.g. 'typed-decisions'",
+            "title": "Task"
+          }
+        },
+        "required": [
+          "state",
+          "questions"
+        ],
+        "title": "SystemOneRequest",
+        "type": "object"
+      },
+      "SystemOneResponse": {
+        "properties": {
+          "answers": {
+            "additionalProperties": {
+              "discriminator": {
+                "mapping": {
+                  "choice": "#/components/schemas/ChoiceAnswer",
+                  "noul": "#/components/schemas/NoulAnswer",
+                  "score": "#/components/schemas/ScoreAnswer"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/ChoiceAnswer"
+                },
+                {
+                  "$ref": "#/components/schemas/ScoreAnswer"
+                },
+                {
+                  "$ref": "#/components/schemas/NoulAnswer"
+                }
+              ]
+            },
+            "title": "Answers",
+            "type": "object"
+          },
+          "model": {
+            "description": "The checkpoint that answered",
+            "title": "Model",
+            "type": "string"
+          },
+          "routing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Routing"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usage": {
+            "$ref": "#/components/schemas/Usage"
+          }
+        },
+        "required": [
+          "model",
+          "answers",
+          "usage"
+        ],
+        "title": "SystemOneResponse",
+        "type": "object"
+      },
+      "Usage": {
+        "properties": {
+          "input_tokens": {
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "output_tokens": {
+            "title": "Output Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "input_tokens",
+          "output_tokens"
+        ],
+        "title": "Usage",
         "type": "object"
       },
       "ValidationError": {
@@ -216,53 +538,15 @@
         "summary": "Health"
       }
     },
-    "/predict": {
-      "post": {
-        "operationId": "predict_predict_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PredictRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PredictResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Predict"
-      }
-    },
-    "/route": {
+    "/v1/route": {
       "post": {
         "description": "Routing decision only \u2014 no forward pass, sub-millisecond.",
-        "operationId": "route_route_post",
+        "operationId": "route_v1_route_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PredictRequest"
+                "$ref": "#/components/schemas/SystemOneRequest"
               }
             }
           },
@@ -291,6 +575,44 @@
           }
         },
         "summary": "Route"
+      }
+    },
+    "/v1/systemone": {
+      "post": {
+        "operationId": "system_one_v1_systemone_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SystemOneRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemOneResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "System One"
       }
     }
   }

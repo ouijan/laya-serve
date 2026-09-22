@@ -2,9 +2,12 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Literal, get_args
 
-VALID_MODELS = ("english", "multilingual", "typed-decisions")
+# laya.DEFAULT_MODELS. Kept as a Literal so it reaches the OpenAPI spec as an
+# enum, which means /docs renders a dropdown instead of a free-text box.
+ModelName = Literal["english", "multilingual", "typed-decisions"]
+VALID_MODELS: tuple[str, ...] = get_args(ModelName)
 
 
 def _env_list(name: str, default: List[str]) -> List[str]:

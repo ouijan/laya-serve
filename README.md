@@ -75,49 +75,92 @@ that has auth. Never expose it to an untrusted network directly.
 
 ## Endpoints
 
-| Method | Path                   | Purpose                                      |
-| ------ | ---------------------- | -------------------------------------------- |
-| GET    | `/health`              | Readiness, resident checkpoints, device       |
-| POST   | `/predict`             | Native inference — use this one               |
-| POST   | `/route`               | Routing decision only, no forward pass        |
+| Method | Path            | Purpose                                 |
+| ------ | --------------- | --------------------------------------- |
+| GET    | `/health`       | Readiness, resident checkpoints, device |
+| POST   | `/v1/systemone` | Inference. This is the one you want.    |
+| POST   | `/v1/route`     | Routing decision only, no forward pass  |
 
-Interactive docs at `http://host:11500/docs`.
+Interactive docs at `http://host:11500/docs`. The example there is a real
+payload: "Try it out" works unedited. To prove a running server end to end:
+
+```bash
+python scripts/smoke.py          # or: python scripts/smoke.py http://your-box:11500
+```
+
+It pulls the example straight out of the server's own spec, so what the docs
+show is exactly what gets run.
+
+### Matching TypeSafe
+
+The request and response bodies follow [TypeSafe's System One API][ts], whose
+Jev model shares laya's three primitives (`choice`, `score`, `noul`). Same
+`state` + `questions` in, same `{ model, answers, usage }` out.
+
+[ts]: https://docs.typesafe.ai/introduction
+
+laya returns three things Jev has no field for. They're kept as a superset,
+since strict clients ignore unknown keys:
+
+| Extra                    | What it gives you                            |
+| ------------------------ | -------------------------------------------- |
+| `routing`                | Which checkpoint answered, and why           |
+| `action.act_probability` | Per answer, how strongly the model would act |
+| `confidence` on `noul`   | Jev returns `noul` alone                     |
+
+One known divergence: top-level `model` is laya's internal agent name
+(`laya-rl-agent`), not the checkpoint. Use `routing.model` for that.
+
+### Routing
+
+laya bundles three checkpoints and picks one per request without loading
+anything. Precedence: `model` > `task` > question ids matching a
+typed-decisions workflow > `lang` > detected script/language > default.
+`reason` says which rule fired:
+
+```bash
+curl -s localhost:11500/v1/route -H 'Content-Type: application/json' \
+  -d '{"state":"Здравствуйте, меня дважды списали",
+       "questions":{"q":{"type":"noul","instructions":"Billing complaint?"}}}'
+# {"model": "multilingual",
+#  "reason": "non-Latin script (cyrillic, 100% of letters); ..."}
+```
 
 ## Calling it from TypeScript
 
 Use the generated client in [`clients/typescript`](clients/typescript) 
 types come from this server's OpenAPI spec, so they can't drift:
 
+Type names mirror the TypeSafe SDK, so moving between this and the hosted API
+is a change of import rather than of code.
+
 ```ts
-import { createLayaClient } from "@ouijan/laya-client";
+import { createLayaClient, isChoice } from "@ouijan/laya-client";
 
 const laya = createLayaClient({ baseUrl: "http://your-box:11500" });
-const { answers, routing } = await laya.predict({ state, questions });
-```
 
-Regenerate after changing an endpoint with `cd clients/typescript && bun run build`.
-
-A fuller example:
-
-```ts
-const { answers } = await laya.predict({
-  state: { subject: "Duplicate charge", body: "We were billed twice for March." },
+const { answers, routing, usage } = await laya.systemOne({
+  state: "We were billed twice for March. We'll move to a competitor.",
   questions: {
     department: {
       type: "choice",
-      instructions: "Which department should handle this?",
-      criteria: { billing: "invoices, refunds", technical: "bugs", other: "everything else" },
+      instructions: "Which team should handle this?",
+      criteria: { billing: "invoices, refunds", technical: "bugs", sales: "pricing" },
     },
-    churn_risk: { type: "noul", instructions: "Does the user threaten to leave?" },
+    churn_risk: { type: "noul", instructions: "The customer threatens to leave" },
   },
 });
 
-console.log(answers.department);
+const department = answers.department;
+if (isChoice(department)) {
+  console.log(department.choice, department.confidence); // "billing" 0.93
+}
 ```
 
-`answers` is `Record<string, unknown>`: its shape follows the questions you
-send, so the server can't describe it in the spec. Narrow it at the call site.
-Everything else is fully typed.
+`answers` is a discriminated union on `type`: narrow with `isChoice`, `isScore`
+or `isNoul` and the remaining fields follow.
+
+Regenerate after changing an endpoint with `cd clients/typescript && bun run build`.
 
 ## Running as a service
 

@@ -35,20 +35,19 @@ class Engine:
             raise RuntimeError("engine not started")
         return self.router
 
-    def predict(
-        self,
-        state: Dict[str, Any],
-        questions: Dict[str, Any],
-        model: str | None = None,
-    ) -> Dict[str, Any]:
-        kwargs = {"model": model} if model else {}
-        result = self._require_router().predict(state, questions, **kwargs)
-        return {"answers": result["answers"], "routing": result.get("routing")}
+    def predict(self, state: Any, questions: Dict[str, Any], **routing: Any) -> Dict[str, Any]:
+        """Pass laya's payload straight through.
 
-    def route_only(self, state: Dict[str, Any], questions: Dict[str, Any]) -> Dict[str, Any]:
+        laya already returns the System One envelope (model, answers, usage)
+        plus a routing key, so reshaping here would only lose fields.
+        """
+        selected = {k: v for k, v in routing.items() if v is not None}
+        return self._require_router().predict(state, questions, **selected)
+
+    def route_only(self, state: Any, questions: Dict[str, Any], **routing: Any) -> Dict[str, Any]:
         """Which checkpoint would handle this, without a forward pass."""
-        decision = self._require_router().route(state, questions)
-        return {"model": getattr(decision, "model", None), "reason": decision.reason}
+        selected = {k: v for k, v in routing.items() if v is not None}
+        return dict(self._require_router().route(state, questions, **selected))
 
     def stop(self) -> None:
         if self.router is None:

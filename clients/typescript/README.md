@@ -3,33 +3,64 @@
 Typed client for `laya-serve`. The types in `src/schema.d.ts` are generated
 from the server's own OpenAPI spec, so they cannot drift from the API.
 
+Names mirror the [TypeSafe SDK](https://docs.typesafe.ai/sdk) — `systemOne`,
+`ChoiceAnswer`, `ScoreAnswer`, `NoulAnswer` — so swapping between this server
+and the hosted Jev API is a change of import, not of code.
+
 ## Use
 
 ```ts
-import { createLayaClient, LayaError } from "@ouijan/laya-client";
+import { createLayaClient, isChoice, isScore, isNoul } from "@ouijan/laya-client";
 
 const laya = createLayaClient({ baseUrl: "http://your-box:11500" });
 
-const { answers, routing } = await laya.predict({
-  state: { subject: "Duplicate charge", body: "We were billed twice for March." },
+const { answers, usage, routing } = await laya.systemOne({
+  state: "We were billed twice for March. We'll move to a competitor.",
   questions: {
     department: {
       type: "choice",
-      instructions: "Which department should handle this?",
-      criteria: { billing: "invoices, refunds", technical: "bugs" },
+      instructions: "Which team should handle this?",
+      criteria: { billing: "invoices, refunds", technical: "bugs", sales: "pricing" },
     },
+    frustration: {
+      type: "score",
+      instructions: "How frustrated the customer appears",
+      criteria: ["Calm", "Frustrated but civil", "Very angry"],
+    },
+    churn_risk: { type: "noul", instructions: "The customer threatens to leave" },
   },
 });
-
-console.log(routing?.model, answers.department);
 ```
 
-`answers` is `Record<string, unknown>` by design — its shape depends on the
-questions you send, so the server cannot describe it up front. Narrow it
-yourself at the call site. Everything else (`routing`, `/health`, the request
-body) is fully typed.
+`answers` is a discriminated union on `type`. Narrow it and the rest of the
+fields follow:
 
-Non-2xx responses throw `LayaError`, which carries `status` and `detail`.
+```ts
+for (const [id, answer] of Object.entries(answers)) {
+  if (isChoice(answer)) console.log(id, answer.choice, answer.probabilities);
+  else if (isScore(answer)) console.log(id, answer.score, answer.legend);
+  else if (isNoul(answer)) console.log(id, answer.noul);
+}
+```
+
+`state` accepts a string, an object or a list of conversation turns.
+
+### laya extras
+
+Beyond Jev's fields you also get `routing` (which of the three checkpoints
+answered, and why) and `action.act_probability` on each answer. `noul` answers
+carry a `confidence` that the hosted API does not return.
+
+```ts
+routing?.model;   // "multilingual"
+routing?.reason;  // "non-Latin script (cyrillic, 100% of letters); ..."
+```
+
+`laya.route(...)` returns just that decision, with no forward pass.
+
+### Errors
+
+Non-2xx responses throw `LayaError`, carrying `status` and `detail`.
 
 Pass `fetch` to supply your own implementation, e.g. for timeouts:
 
