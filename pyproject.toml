@@ -14,8 +14,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
-    # FastAPI's TestClient needs httpx.
-    "httpx>=0.27",
+    # starlette's TestClient wants httpx2; plain httpx is deprecated there.
+    "httpx2>=2.13",
 ]
 
 [project.scripts]
@@ -24,6 +24,13 @@ laya-serve = "laya_serve.cli:main"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+# Warnings fail the build, so a new deprecation can't accumulate unnoticed.
+# Each ignore names the dependency it's waiting on.
+filterwarnings = [
+    "error",
+    # starlette 1.6.0 uses an anyio alias deprecated in anyio 4.15.
+    "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
+]
 
 [build-system]
 requires = ["hatchling"]
