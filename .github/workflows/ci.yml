@@ -41,14 +41,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: default
-            suffix: cpu
-          - target: baked
-            suffix: cpu-baked
     steps:
       - uses: actions/checkout@v5
 
@@ -69,16 +61,15 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE }}
           tags: |
-            type=raw,value=${{ matrix.suffix }}
-            type=sha,prefix=${{ matrix.suffix }}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha
 
       - uses: docker/build-push-action@v6
         with:
           context: .
-          target: ${{ matrix.target }}
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.suffix }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.suffix }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
