@@ -164,6 +164,48 @@ or `isNoul` and the remaining fields follow.
 
 Regenerate after changing an endpoint with `cd clients/typescript && bun run build`.
 
+## Docker
+
+CPU only, so the card stays free for Ollama. Two variants from one Dockerfile:
+
+```bash
+docker build -t laya-serve .                       # 1.15GB, weights on a volume
+docker build -t laya-serve:baked --target baked .  # 2GB, weights in the image
+```
+
+Weights on a volume, downloaded on first boot:
+
+```bash
+docker run -d --name laya \
+  -p 127.0.0.1:11500:11500 \
+  -v laya-models:/var/cache/huggingface \
+  laya-serve
+```
+
+The baked variant needs no volume and no network:
+
+```bash
+docker run -d --network none laya-serve:baked
+```
+
+Publish to `127.0.0.1` as above unless you mean to expose it. The container
+listens on `0.0.0.0` because it has to, and there is no auth.
+
+`HEALTHCHECK` polls `/health` and only reports healthy once a checkpoint is
+resident, so the container stays unhealthy while a first download runs rather
+than accepting traffic it can't serve. `start-period` allows 3 minutes.
+
+Configure with the same env vars as the CLI; the image defaults to
+`LAYA_DEVICE=cpu` and `LAYA_MODELS=english`:
+
+```bash
+docker run -e LAYA_MODELS=english,multilingual laya-serve
+```
+
+The CPU wheel index in the Dockerfile is not incidental. A plain
+`pip install torch` on Linux pulls ~3GB of CUDA libraries that a CPU image can
+never use; the image ships `torch 2.14.0+cpu` and zero `nvidia-*` packages.
+
 ## Running as a service
 
 Start it before Ollama so Ollama sizes its GPU offload around the resident

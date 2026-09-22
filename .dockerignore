@@ -1,0 +1,11 @@
+# Allowlist: only what's needed to build the wheel. Without this the 766MB
+# .venv, the git history and node_modules are uploaded to the daemon on every
+# build. README.md is required because pyproject.toml declares it as `readme`.
+*
+!pyproject.toml
+!README.md
+!src/
+
+# Re-exclude noise from inside the allowed directories.
+**/__pycache__
+**/*.py[cod]
