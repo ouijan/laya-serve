@@ -2,7 +2,7 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List
 
 VALID_MODELS = ("english", "multilingual", "typed-decisions")
 
@@ -27,7 +27,7 @@ def cuda_available() -> bool:
         return False
 
 
-def cuda_name() -> Optional[str]:
+def cuda_name() -> str | None:
     try:
         import torch
 
@@ -49,20 +49,10 @@ class Settings:
         default_factory=lambda: _env_list("LAYA_MODELS", ["english", "multilingual"])
     )
 
-    # "half" tries fp16 on the loaded weights, "full" leaves them as-is.
-    dtype: str = os.environ.get("LAYA_DTYPE", "half")
-
-    # If set, every request must send `Authorization: Bearer <key>`.
-    api_key: Optional[str] = os.environ.get("LAYA_API_KEY") or None
-
     def validate(self) -> None:
         bad = [m for m in self.models if m not in VALID_MODELS]
         if bad:
-            raise ValueError(
-                f"unknown checkpoint(s) {bad}; valid: {', '.join(VALID_MODELS)}"
-            )
-        if self.dtype not in ("half", "full"):
-            raise ValueError("dtype must be 'half' or 'full'")
+            raise ValueError(f"unknown checkpoint(s) {bad}; valid: {', '.join(VALID_MODELS)}")
         if self.device not in ("auto", "cpu", "cuda"):
             raise ValueError("device must be 'auto', 'cpu' or 'cuda'")
 
@@ -78,9 +68,3 @@ class Settings:
         if self.device == "cpu":
             return "cpu"
         return "cuda" if cuda_available() else "cpu"
-
-    def resolve_dtype(self, device: str) -> str:
-        """fp16 on CPU is slow or unimplemented for many ops — force full there."""
-        if device == "cpu" and self.dtype == "half":
-            return "full"
-        return self.dtype
