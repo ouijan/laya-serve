@@ -1,10 +1,11 @@
 name: Publish client
 
-# Tag the commit you want to ship, e.g. `git tag client-v0.1.1 && git push --tags`.
-# The tag is the release record; the version still comes from package.json.
+# One tag ships both artefacts: `git tag v0.1.1 && git push --tags` publishes
+# ghcr.io/ouijan/laya-serve:0.1.1 from CI and @ouijan/laya-client@0.1.1 here,
+# so a consumer can pin the image and the client to the same number.
 on:
   push:
-    tags: ["client-v*"]
+    tags: ["v*"]
   workflow_dispatch:
 
 jobs:
@@ -26,6 +27,18 @@ jobs:
           node-version: 22
           registry-url: https://npm.pkg.github.com
           scope: "@ouijan"
+
+      # A tag that disagrees with package.json would publish the wrong
+      # version under the right-looking tag. Fail instead.
+      - name: Check the tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p 'require("./package.json").version')"
+          test "$tag" = "$pkg" || {
+            echo "tag $GITHUB_REF_NAME does not match package.json $pkg"
+            exit 1
+          }
 
       - run: bun install --frozen-lockfile
       - run: bun run typecheck

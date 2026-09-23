@@ -249,6 +249,19 @@ User=youruser
 WantedBy=multi-user.target
 ```
 
+## Releasing
+
+One tag ships everything. Bump `version` in `pyproject.toml` and
+`clients/typescript/package.json` to the same number, then:
+
+```bash
+git tag v0.2.0 && git push --tags
+```
+
+That publishes `ghcr.io/ouijan/laya-serve:0.2.0` and
+`@ouijan/laya-client@0.2.0` from the same commit. `main` also publishes
+`:latest` on every merge. A test fails if the two manifests disagree.
+
 ## Development
 
 ```bash

@@ -12,6 +12,7 @@ from typing import Annotated, Any, Dict, List, Literal, Union
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from . import __version__
 from .config import ModelName, Settings, cuda_name
 from .engine import Engine
 
@@ -162,7 +163,7 @@ def create_app(settings: Settings) -> FastAPI:
         yield
         engine.stop()
 
-    app = FastAPI(title="laya-serve", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="laya-serve", version=__version__, lifespan=lifespan)
 
     @app.get("/health", response_model=HealthResponse)
     def health():

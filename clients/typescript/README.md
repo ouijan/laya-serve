@@ -93,6 +93,18 @@ createLayaClient({
 });
 ```
 
+## Versioning
+
+The client version tracks the server's, and a single `v<semver>` tag ships
+both. `@ouijan/laya-client@0.1.0` is built from the same commit as
+`ghcr.io/ouijan/laya-serve:0.1.0`, so pin them to the same number. A test
+fails if `package.json` and `pyproject.toml` disagree.
+
+```bash
+# bump both, then:
+git tag v0.2.0 && git push --tags
+```
+
 ## Regenerating after an API change
 
 ```bash
