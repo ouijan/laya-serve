@@ -3,9 +3,11 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
 
-# Images are published only from main; pull requests build without pushing.
+# Images publish from main as :latest, and from a v* tag as the version.
+# Pull requests build without pushing.
 env:
   REGISTRY: ghcr.io
   IMAGE: ${{ github.repository }}
@@ -82,6 +84,8 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
             type=sha
 
       - uses: docker/build-push-action@v6
