@@ -3,6 +3,8 @@ name = "laya-serve"
 version = "0.1.0"
 description = "A slim HTTP wrapper around Laya so remote apps can call it over the network"
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.10,<3.14"
 dependencies = [
     "laya>=0.3.5",

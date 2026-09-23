@@ -77,7 +77,11 @@ includes the script/language detection behind the decision.)
 Interactive docs are at `http://localhost:11500/docs`, and the example there
 is a real payload: "Try it out" works without editing it.
 
-From TypeScript ([install](clients/typescript#install)):
+From TypeScript:
+
+```bash
+npm add @ouijan/laya-client
+```
 
 ```ts
 import { createLayaClient, isChoice } from "@ouijan/laya-client";
@@ -301,4 +305,4 @@ out of the live server's spec, so what `/docs` shows is what it runs.
 ## Credits
 
 Laya is by [NandhaKishorM](https://github.com/NandhaKishorM/laya) (Apache-2.0).
-This repo is only the HTTP layer.
+This repo is only the HTTP layer, and is Apache-2.0 too. See [LICENSE](LICENSE).

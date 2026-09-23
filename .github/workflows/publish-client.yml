@@ -14,6 +14,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      # OIDC for npm trusted publishing: no NPM_TOKEN anywhere.
+      id-token: write
     defaults:
       run:
         working-directory: clients/typescript
@@ -45,6 +47,23 @@ jobs:
       - run: bun run compile
 
       # npm rather than bun: bun publish does not read setup-node's .npmrc.
-      - run: npm publish
+      - name: Publish to GitHub Packages
+        run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # GitHub Packages requires a token even for public packages, so the
+      # public registry is what makes `npm add` work with no setup.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          scope: "@ouijan"
+
+      # Trusted publishing needs npm >= 11.5.1; node 22 still bundles npm 10.
+      - run: npm install -g npm@latest
+
+      # No NODE_AUTH_TOKEN: the CLI detects the OIDC environment and
+      # exchanges it for a short-lived credential.
+      - name: Publish to npmjs via OIDC
+        run: npm publish --access public

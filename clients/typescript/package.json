@@ -2,6 +2,7 @@
   "name": "@ouijan/laya-client",
   "version": "0.1.0",
   "description": "Typed TypeScript client for laya-serve, generated from its OpenAPI spec",
+  "license": "Apache-2.0",
   "type": "module",
   "exports": {
     ".": {
@@ -10,7 +11,10 @@
     }
   },
   "types": "./dist/index.d.ts",
-  "files": ["dist", "openapi.json"],
+  "files": [
+    "dist",
+    "openapi.json"
+  ],
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
@@ -25,7 +29,8 @@
     "compile": "tsc -p tsconfig.build.json",
     "build": "bun run spec && bun run generate && bun run compile",
     "typecheck": "tsc --noEmit",
-    "check": "bun run typecheck"
+    "check": "bun run typecheck",
+    "prepack": "cp ../../LICENSE ./LICENSE"
   },
   "dependencies": {
     "openapi-fetch": "^0.14.0"
