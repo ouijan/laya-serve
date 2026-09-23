@@ -137,15 +137,9 @@
             ]
           },
           "confidence": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Confidence"
+            "description": "How peaked the distribution is, 0-1",
+            "title": "Confidence",
+            "type": "number"
           },
           "noul": {
             "description": "Probability the statement is true, 0-1",
@@ -160,7 +154,8 @@
         },
         "required": [
           "type",
-          "noul"
+          "noul",
+          "confidence"
         ],
         "title": "NoulAnswer",
         "type": "object"
@@ -516,7 +511,7 @@
   },
   "info": {
     "title": "laya-serve",
-    "version": "0.1.1"
+    "version": "0.2.0"
   },
   "openapi": "3.1.0",
   "paths": {
