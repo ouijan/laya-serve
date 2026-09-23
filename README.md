@@ -256,15 +256,22 @@ WantedBy=multi-user.target
 ## Releasing
 
 One tag ships everything. Bump `version` in `pyproject.toml` and
-`clients/typescript/package.json` to the same number, then:
+`clients/typescript/package.json` to the same number, regenerate the spec
+(it embeds the version, and a test enforces that), then tag:
 
 ```bash
-git tag v0.2.0 && git push --tags
+cd clients/typescript && bun run build && cd ../..
+git commit -am "v0.2.0" && git tag v0.2.0 && git push --tags
 ```
 
 That publishes `ghcr.io/ouijan/laya-serve:0.2.0` and
-`@ouijan/laya-client@0.2.0` from the same commit. `main` also publishes
-`:latest` on every merge. A test fails if the two manifests disagree.
+`@ouijan/laya-client@0.2.0` from the same commit, plus a copy of the client
+on GitHub Packages. `main` also publishes `:latest` on every merge. Tests fail
+if the two manifests disagree or the spec is stale.
+
+npm publishing uses OIDC trusted publishing, so there is no npm token in the
+repo. The trusted publisher is configured on the package at npmjs.com and
+pinned to this repo and `publish-client.yml`.
 
 ## Development
 
