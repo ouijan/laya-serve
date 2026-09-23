@@ -26,12 +26,10 @@ bun init -y
 bun add @ouijan/laya-client
 ```
 
-A complete runnable `index.ts` is in the [repo README][quickstart], and as a
-folder at [`examples/typescript-quickstart`][example]. The rest of this page
-is the API surface.
+A complete `index.ts` is in the [repo README][quickstart]. The rest of this
+page is the API surface.
 
 [quickstart]: https://github.com/ouijan/laya-serve#quickstart
-[example]: https://github.com/ouijan/laya-serve/tree/main/examples/typescript-quickstart
 
 ## Install
 

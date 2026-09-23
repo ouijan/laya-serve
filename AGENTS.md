@@ -53,68 +53,50 @@ bun add @ouijan/laya-client
 
 ### 3. Write index.ts
 
-Copy this verbatim. It is typechecked in CI against the published client, so
-it compiles. Do not write your own from the type definitions: hand-rolled
-versions hit narrowing problems this one doesn't.
+Start from this. Don't write your own from the type definitions: `answers` is
+a union keyed by your question ids, and hand-rolled versions get the narrowing
+wrong.
 
-```bash
-cat > index.ts <<'EOF'
-import {
-	type Answer,
-	createLayaClient,
-	isChoice,
-	isNoul,
-	isScore,
-} from "@ouijan/laya-client";
+```ts
+import { createLayaClient, isChoice, isNoul, isScore } from "@ouijan/laya-client";
 
 const laya = createLayaClient({ baseUrl: "http://localhost:11500" });
 
-// Edit this: the situation you want decided.
-const state =
-	"We were billed twice for March and nobody has replied in 3 days. If this is not fixed we will move to a competitor.";
-
-// Edit these: every question is answered in the same forward pass.
+// Every question is answered in the same forward pass, so a fourth is free.
 const { answers, routing, usage } = await laya.systemOne({
-	state,
-	questions: {
-		department: {
-			type: "choice",
-			instructions: "Which team should handle this?",
-			criteria: {
-				billing: "payments, refunds, invoices",
-				technical: "bugs and integrations",
-				sales: "pricing and accounts",
-			},
-		},
-		frustration: {
-			type: "score",
-			instructions: "How frustrated the customer appears",
-			criteria: ["Calm", "Frustrated but civil", "Very angry"],
-		},
-		churn_risk: {
-			type: "noul",
-			instructions: "The customer threatens to leave",
-		},
-	},
+  state:
+    "We were billed twice for March and nobody has replied in 3 days. " +
+    "If this is not fixed we will move to a competitor.",
+  questions: {
+    department: {
+      type: "choice",
+      instructions: "Which team should handle this?",
+      criteria: { billing: "payments and refunds", technical: "bugs" },
+    },
+    frustration: {
+      type: "score",
+      instructions: "How frustrated the customer appears",
+      criteria: ["Calm", "Frustrated but civil", "Very angry"],
+    },
+    churn_risk: {
+      type: "noul",
+      instructions: "The customer threatens to leave",
+    },
+  },
 });
 
-/** `answers` is a union discriminated on `type`; narrow it and the fields follow. */
-function describe(answer: Answer): string {
-	if (isChoice(answer)) return answer.choice;
-	if (isScore(answer)) return answer.score.toFixed(2);
-	if (isNoul(answer)) return answer.noul.toFixed(4);
-	return "unknown answer type";
-}
+const { department, frustration, churn_risk } = answers;
 
-for (const [id, answer] of Object.entries(answers)) {
-	const confidence = answer.confidence.toFixed(2);
-	console.log(`${id.padEnd(12)} ${describe(answer)}  (confidence ${confidence})`);
-}
+if (isChoice(department)) console.log(department.choice, department.confidence);
+if (isScore(frustration)) console.log(frustration.score.toFixed(2));
+if (isNoul(churn_risk)) console.log(churn_risk.noul, churn_risk.confidence);
 
-console.log(`\nanswered by ${routing?.model}: ${routing?.reason}`);
-console.log(`${usage.input_tokens} input tokens in, ${usage.output_tokens} out`);
-EOF
+console.log(routing?.model, routing?.reason);
+console.log(usage.input_tokens, "input tokens,", usage.output_tokens, "output");
 ```
+
+Narrow every answer with `isChoice`, `isScore` or `isNoul` before reading its
+fields; the type discriminator is what makes the rest of them available.
 
 Then ask the user what decision they actually want to make, and adapt `state`
 and `questions` to it. If they don't answer, leave the support triage example
@@ -127,12 +109,11 @@ bun run index.ts
 ```
 
 ```
-department   billing  (confidence 0.91)
-frustration  1.55  (confidence 0.30)
-churn_risk   0.8761  (confidence 0.88)
-
-answered by english: English Latin text
-178 input tokens in, 0 out
+billing 0.6841
+1.55
+0.8761 0.8761
+english English Latin text
+166 input tokens, 0 output
 ```
 
 Run what you wrote. A server is one command away and requests take under a
@@ -160,15 +141,15 @@ Facts that cost people time:
 - **Do not widen `clients/typescript/tsconfig.json`'s `include`.**
   `tsconfig.build.json` extends it, so that moves the build output and breaks
   the `exports` in `package.json` — invisibly, because `dist/` is gitignored
-  and it only bites on a clean CI build. Examples get their own tsconfig.
+  and it only bites on a clean CI build.
 - **`clients/typescript/src/schema.ts` and `openapi.json` are generated.**
   Change `src/laya_serve/api.py`, then `cd clients/typescript && bun run build`.
 - **Bumping the version needs a reinstall.** `__version__` reads installed
   metadata, so `uv pip install -e .` after editing `pyproject.toml`, before
   regenerating the spec.
-- **The `index.ts` above is guarded.** `tests/test_quickstart.py` fails if it
-  drifts from `examples/typescript-quickstart/index.ts`. Change both.
+- **The `index.ts` above is not compiled by CI.** Nothing catches it drifting
+  from the client's real API, so if you change `createLayaClient` or the
+  answer types, update it here and in `README.md` by hand.
 - **The published client can lag this repo.** If the version in
-  `pyproject.toml` isn't on npm yet, the tag hasn't shipped. Typechecking
-  `examples/typescript-quickstart` against an older published client is
-  expected to fail between a schema change and its release.
+  `pyproject.toml` isn't on npm yet, the tag hasn't shipped. Say so rather
+  than documenting an API nobody can install.
