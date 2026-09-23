@@ -9,17 +9,19 @@ and the hosted Jev API is a change of import, not of code.
 
 ## Install
 
-Published to GitHub Packages. The repo is private, so consumers need a token
-with `read:packages` in their `.npmrc`:
+Published to the public npm registry:
+
+```bash
+npm add @ouijan/laya-client   # or bun add / pnpm add
+```
+
+Also published to GitHub Packages. That registry needs a token even for
+public packages, so only use it if you specifically want it:
 
 ```ini
 # .npmrc
 @ouijan:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
-```
-
-```bash
-npm add @ouijan/laya-client   # or bun add / pnpm add
 ```
 
 The package ships compiled JS and `.d.ts`, so it works under Node, bundlers

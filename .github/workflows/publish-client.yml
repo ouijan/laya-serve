@@ -17,6 +17,8 @@ jobs:
     defaults:
       run:
         working-directory: clients/typescript
+    env:
+      HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
@@ -45,6 +47,23 @@ jobs:
       - run: bun run compile
 
       # npm rather than bun: bun publish does not read setup-node's .npmrc.
-      - run: npm publish
+      - name: Publish to GitHub Packages
+        run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # GitHub Packages requires a token even for public packages, so the
+      # public registry is what makes `npm add` work with no setup. Skipped
+      # until NPM_TOKEN exists, rather than failing the release.
+      - uses: actions/setup-node@v4
+        if: env.HAS_NPM_TOKEN == 'true'
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          scope: "@ouijan"
+
+      - name: Publish to npmjs
+        if: env.HAS_NPM_TOKEN == 'true'
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
