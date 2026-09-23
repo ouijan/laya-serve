@@ -1,31 +1,32 @@
-"""The README quickstart is the first thing anyone runs, and it is pasted,
-not executed by CI. This keeps it identical to the example folder, which is
-typechecked against the published client, so a stale paste can't survive.
+"""AGENTS.md carries the onboarding procedure, including the index.ts an agent
+is told to paste. It is pasted rather than executed by CI, so this keeps it
+identical to the example folder, which is typechecked against the published
+client.
 """
 
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-README = ROOT / "README.md"
+AGENTS = ROOT / "AGENTS.md"
 EXAMPLE = ROOT / "examples/typescript-quickstart/index.ts"
 
 HEREDOC_OPEN = "cat > index.ts <<'EOF'\n"
 HEREDOC_CLOSE = "\nEOF\n"
 
 
-def readme_heredoc() -> str:
-    """The index.ts the quickstart tells you to paste."""
-    text = README.read_text()
-    assert HEREDOC_OPEN in text, f"README lost the {HEREDOC_OPEN.strip()} block"
+def agents_heredoc() -> str:
+    """The index.ts the onboarding procedure tells an agent to paste."""
+    text = AGENTS.read_text()
+    assert HEREDOC_OPEN in text, f"AGENTS.md lost the {HEREDOC_OPEN.strip()} block"
     body = text.split(HEREDOC_OPEN, 1)[1]
-    assert HEREDOC_CLOSE in body, "README quickstart heredoc is not terminated"
+    assert HEREDOC_CLOSE in body, "AGENTS.md onboarding heredoc is not terminated"
     return body.split(HEREDOC_CLOSE, 1)[0] + "\n"
 
 
 def test_quickstart_matches_the_example():
-    assert readme_heredoc() == EXAMPLE.read_text(), (
-        "README.md quickstart and examples/typescript-quickstart/index.ts have "
-        "drifted; make them identical"
+    assert agents_heredoc() == EXAMPLE.read_text(), (
+        "AGENTS.md and examples/typescript-quickstart/index.ts have drifted; "
+        "make them identical"
     )
 
 

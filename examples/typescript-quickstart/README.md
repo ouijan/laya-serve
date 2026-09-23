@@ -1,12 +1,12 @@
 # TypeScript quickstart
 
-The example the root [README](../../README.md) walks you through, as a
-runnable folder. `index.ts` here and the block in that README are the same
+The example the [README](../../README.md) points at, as a runnable folder.
+`index.ts` here and the block in [`AGENTS.md`](../../AGENTS.md) are the same
 file — a test fails if they drift.
 
-You do not need this repo to use it. If you only want to try Laya, follow the
-root README and let it scaffold the folder in your own workspace. This copy
-exists so CI can typecheck the thing the docs tell you to paste.
+You do not need this repo to use it. Copying `index.ts` into your own folder
+is the whole story. This copy exists so CI can typecheck the thing the docs
+tell you to paste.
 
 ```bash
 docker run -d --name laya -p 127.0.0.1:11500:11500 ghcr.io/ouijan/laya-serve
