@@ -42,7 +42,6 @@ documented thing and the real thing can diverge silently:
 | ---------------------------- | --------------------------------------------------- |
 | `tests/test_docs.py`         | the `/docs` example stops being a valid, runnable request |
 | `tests/test_docs.py`         | `clients/typescript/openapi.json` is stale against the code |
-| `tests/test_quickstart.py`   | `AGENTS.md`'s onboarding `index.ts` and `examples/typescript-quickstart/index.ts` disagree |
 | `tests/test_version.py`      | `pyproject.toml` and `clients/typescript/package.json` disagree |
 
 To see real model output against a running server:
@@ -71,35 +70,22 @@ compile` alone rebuilds `dist/` and needs no Python. Commit both
 so widening it changes tsc's inferred `rootDir` and moves the emitted files —
 `dist/index.js` becomes `dist/src/index.js`, which no longer matches the
 `exports` in `package.json`. `dist/` is gitignored, so that only shows up in a
-clean CI build, i.e. at publish time. Keep examples in their own tsconfig.
+clean CI build, i.e. at publish time.
 
-## The quickstart example
+## The documented examples
 
-`examples/typescript-quickstart/` depends on the *published* client, not the
-local source, because that's what a new user gets. `index.ts` is byte-for-byte
-the block in `AGENTS.md`; change one and `tests/test_quickstart.py` makes you
-change the other.
+`README.md` and `AGENTS.md` each carry a TypeScript snippet. Neither is
+compiled by CI, so changing `createLayaClient` or the answer types means
+updating both by hand.
 
-The split is deliberate: `README.md` is a paragraph for a human deciding
-whether this is worth their time, and `AGENTS.md` is the procedure, for a
-coding agent pointed at its raw URL. Detail belongs in the second one.
+There is no example project to keep in sync, on purpose. One pinned to the
+published client bought a compile check, but cost a folder, a lockfile policy
+and a red typecheck for the whole window between a schema change and its
+release.
 
-```bash
-cd examples/typescript-quickstart
-bun install && bun run typecheck
-```
-
-It resolves `@ouijan/laya-client@latest` deliberately: a breaking change in a
-published client should fail the example that tells people to install it.
-
-The cost of that is a lag around a release. If you tighten a response type,
-the example is written against the *new* shape while `latest` is still the old
-one, so `bun run typecheck` there fails until the tag publishes. That is why
-it isn't in CI: `tests/test_quickstart.py` guards the README against the
-example on every run, and the typecheck is a post-release check.
-
-`bun install --frozen-lockfile` does not work here — the lockfile is
-gitignored, for the same reason.
+The split between the two files is deliberate. `README.md` shows a human how
+to install the client and call it. `AGENTS.md` is the setup procedure, for a
+coding agent handed its raw URL. Detail belongs in the second one.
 
 ## Docker
 

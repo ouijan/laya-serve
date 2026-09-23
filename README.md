@@ -38,22 +38,47 @@ mkdir laya-play && cd laya-play && bun init -y && bun add @ouijan/laya-client
 ```
 
 That wait is 2-3 minutes on a cold pull and ~30s once the image is local; it
-isn't hung. Copy
-[`examples/typescript-quickstart/index.ts`](examples/typescript-quickstart/index.ts)
-into the folder and run it:
+isn't hung. Then `index.ts`:
 
-```bash
-bun run index.ts
+```ts
+import { createLayaClient, isChoice, isNoul } from "@ouijan/laya-client";
+
+const laya = createLayaClient({ baseUrl: "http://localhost:11500" });
+
+const { answers, routing } = await laya.systemOne({
+  state:
+    "We were billed twice for March and nobody has replied in 3 days. " +
+    "If this is not fixed we will move to a competitor.",
+  questions: {
+    department: {
+      type: "choice",
+      instructions: "Which team should handle this?",
+      criteria: { billing: "payments and refunds", technical: "bugs" },
+    },
+    churn_risk: {
+      type: "noul",
+      instructions: "The customer threatens to leave",
+    },
+  },
+});
+
+const { department, churn_risk } = answers;
+
+if (isChoice(department)) console.log(department.choice, department.confidence);
+if (isNoul(churn_risk)) console.log(churn_risk.noul, churn_risk.confidence);
+console.log(routing?.model, routing?.reason);
 ```
 
-```
-department   billing  (confidence 0.91)
-frustration  1.55  (confidence 0.30)
-churn_risk   0.8761  (confidence 0.88)
+`bun run index.ts` prints:
 
-answered by english: English Latin text
-178 input tokens in, 0 out
 ```
+billing 0.6841
+0.8761 0.8761
+english English Latin text
+```
+
+`answers` is a union discriminated on `type`. Narrow with `isChoice`,
+`isScore` or `isNoul` and the remaining fields follow.
 
 The questions are the interesting part — edit `state` and `questions` and run
 it again. A fourth question costs nothing, since they're all answered in the
