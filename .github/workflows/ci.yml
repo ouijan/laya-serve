@@ -57,6 +57,18 @@ jobs:
       - name: Check the built package resolves
         run: test -f dist/index.js && test -f dist/index.d.ts && test -f dist/schema.d.ts
 
+      # publishConfig.registry overrides .npmrc, so pinning it here would send
+      # every publish to one registry no matter what the workflow asks for.
+      - name: Registry must not be pinned in package.json
+        run: |
+          node -e '
+            const pkg = require("./package.json");
+            if (pkg.publishConfig && pkg.publishConfig.registry) {
+              console.error("publishConfig.registry overrides .npmrc; pass --registry per publish instead");
+              process.exit(1);
+            }
+          '
+
   build:
     needs: test
     runs-on: ubuntu-latest

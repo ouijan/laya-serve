@@ -47,8 +47,10 @@ jobs:
       - run: bun run compile
 
       # npm rather than bun: bun publish does not read setup-node's .npmrc.
+      # --registry is explicit because package.json deliberately has no
+      # publishConfig: that would override .npmrc and pin every publish here.
       - name: Publish to GitHub Packages
-        run: npm publish
+        run: npm publish --registry https://npm.pkg.github.com
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -66,4 +68,4 @@ jobs:
       # No NODE_AUTH_TOKEN: the CLI detects the OIDC environment and
       # exchanges it for a short-lived credential.
       - name: Publish to npmjs via OIDC
-        run: npm publish --access public
+        run: npm publish --access public --registry https://registry.npmjs.org

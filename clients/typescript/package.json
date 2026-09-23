@@ -15,9 +15,6 @@
     "dist",
     "openapi.json"
   ],
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ouijan/laya-serve.git",
