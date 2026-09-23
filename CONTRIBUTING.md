@@ -42,7 +42,7 @@ documented thing and the real thing can diverge silently:
 | ---------------------------- | --------------------------------------------------- |
 | `tests/test_docs.py`         | the `/docs` example stops being a valid, runnable request |
 | `tests/test_docs.py`         | `clients/typescript/openapi.json` is stale against the code |
-| `tests/test_quickstart.py`   | the README quickstart and `examples/typescript-quickstart/index.ts` disagree |
+| `tests/test_quickstart.py`   | `AGENTS.md`'s onboarding `index.ts` and `examples/typescript-quickstart/index.ts` disagree |
 | `tests/test_version.py`      | `pyproject.toml` and `clients/typescript/package.json` disagree |
 
 To see real model output against a running server:
@@ -77,8 +77,12 @@ clean CI build, i.e. at publish time. Keep examples in their own tsconfig.
 
 `examples/typescript-quickstart/` depends on the *published* client, not the
 local source, because that's what a new user gets. `index.ts` is byte-for-byte
-the block in the README; change one and `tests/test_quickstart.py` makes you
+the block in `AGENTS.md`; change one and `tests/test_quickstart.py` makes you
 change the other.
+
+The split is deliberate: `README.md` is a paragraph for a human deciding
+whether this is worth their time, and `AGENTS.md` is the procedure, for a
+coding agent pointed at its raw URL. Detail belongs in the second one.
 
 ```bash
 cd examples/typescript-quickstart
@@ -132,6 +136,6 @@ npm publishing uses OIDC trusted publishing, so there is no npm token in the
 repo. The trusted publisher is configured on the package at npmjs.com and
 pinned to this repo and `publish-client.yml`.
 
-After the tag lands, check the README quickstart against the published
+After the tag lands, check the onboarding path against the published
 artefacts: it installs `@ouijan/laya-client` from npm and pulls
 `ghcr.io/ouijan/laya-serve:latest`, so it is only correct once both are up.

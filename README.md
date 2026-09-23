@@ -28,95 +28,19 @@ script and language it detects, and that decision is exposed here too.
 
 ## Quickstart
 
-**You do not need to clone this repo.** The server is a container and the
-client is on npm. This takes about a minute, needs no GPU and downloads no
-checkpoint — the `english` one is baked into the image.
-
-### 1. Start the server
+You don't need to clone this repo: the server is a container, the client is on
+npm, and neither needs a GPU.
 
 ```bash
 docker run -d --name laya -p 127.0.0.1:11500:11500 ghcr.io/ouijan/laya-serve
 until curl -sf localhost:11500/health >/dev/null; do sleep 2; done
+mkdir laya-play && cd laya-play && bun init -y && bun add @ouijan/laya-client
 ```
 
-`docker run -d` returns before the checkpoint is resident, so wait for
-`/health` rather than firing straight into a request. From a cold start that
-wait is ~2-3 minutes: the image is ~2GB and the checkpoint takes ~30s to load
-once it's pulled. With the image already cached it's the 30s.
-
-It is not hung. Watch it with `docker logs -f laya` if you'd rather see
-something happen.
-
-### 2. Scaffold a project
-
-```bash
-mkdir laya-play && cd laya-play
-bun init -y
-bun add @ouijan/laya-client
-```
-
-### 3. Write the demo
-
-```bash
-cat > index.ts <<'EOF'
-import {
-	type Answer,
-	createLayaClient,
-	isChoice,
-	isNoul,
-	isScore,
-} from "@ouijan/laya-client";
-
-const laya = createLayaClient({ baseUrl: "http://localhost:11500" });
-
-// Edit this: the situation you want decided.
-const state =
-	"We were billed twice for March and nobody has replied in 3 days. If this is not fixed we will move to a competitor.";
-
-// Edit these: every question is answered in the same forward pass.
-const { answers, routing, usage } = await laya.systemOne({
-	state,
-	questions: {
-		department: {
-			type: "choice",
-			instructions: "Which team should handle this?",
-			criteria: {
-				billing: "payments, refunds, invoices",
-				technical: "bugs and integrations",
-				sales: "pricing and accounts",
-			},
-		},
-		frustration: {
-			type: "score",
-			instructions: "How frustrated the customer appears",
-			criteria: ["Calm", "Frustrated but civil", "Very angry"],
-		},
-		churn_risk: {
-			type: "noul",
-			instructions: "The customer threatens to leave",
-		},
-	},
-});
-
-/** `answers` is a union discriminated on `type`; narrow it and the fields follow. */
-function describe(answer: Answer): string {
-	if (isChoice(answer)) return answer.choice;
-	if (isScore(answer)) return answer.score.toFixed(2);
-	if (isNoul(answer)) return answer.noul.toFixed(4);
-	return "unknown answer type";
-}
-
-for (const [id, answer] of Object.entries(answers)) {
-	const confidence = answer.confidence.toFixed(2);
-	console.log(`${id.padEnd(12)} ${describe(answer)}  (confidence ${confidence})`);
-}
-
-console.log(`\nanswered by ${routing?.model}: ${routing?.reason}`);
-console.log(`${usage.input_tokens} input tokens in, ${usage.output_tokens} out`);
-EOF
-```
-
-### 4. Run it
+That wait is 2-3 minutes on a cold pull and ~30s once the image is local; it
+isn't hung. Copy
+[`examples/typescript-quickstart/index.ts`](examples/typescript-quickstart/index.ts)
+into the folder and run it:
 
 ```bash
 bun run index.ts
@@ -131,64 +55,26 @@ answered by english: English Latin text
 178 input tokens in, 0 out
 ```
 
-Requests take well under a second on CPU once the checkpoint is resident.
+The questions are the interesting part — edit `state` and `questions` and run
+it again. A fourth question costs nothing, since they're all answered in the
+same forward pass and nothing is generated. `docker rm -f laya` stops the
+server. Interactive docs are at `http://localhost:11500/docs`, where the
+pre-filled example is a real payload you can "Try it out" unedited.
 
-### 5. Change it
+### Have an agent set it up
 
-The questions are the interesting part. Edit `state` and `questions`, then run
-it again. Adding a fourth question costs nothing: they are all answered in the
-same forward pass, and `usage.output_tokens` stays at zero because nothing is
-generated.
-
-Done with it:
-
-```bash
-docker rm -f laya
-```
-
-The same example lives at
-[`examples/typescript-quickstart`](examples/typescript-quickstart) if you'd
-rather clone than paste. Interactive docs are at
-`http://localhost:11500/docs`, where the pre-filled example is a real payload:
-"Try it out" works without editing it.
-
-### Or have an agent do it
-
-Paste this into Claude Code, Codex, OpenCode or whatever you use. It's worded
-to head off the two things agents get wrong here: cloning this repo to work
-inside it, and handing back a script they never ran.
+[`AGENTS.md`](AGENTS.md) is the whole procedure, written for a coding agent.
+Point one at it:
 
 ```text
-Set up a TypeScript sandbox so I can play with Laya, a System One decision
-engine. Work in a new folder in my current directory.
-
-Do NOT clone github.com/ouijan/laya-serve. The server is a public container
-and the client is a public npm package; you need neither the source nor a GPU.
-
-1. Start the server:
-   docker run -d --name laya -p 127.0.0.1:11500:11500 ghcr.io/ouijan/laya-serve
-   `docker run -d` returns before the model is loaded, so wait for readiness
-   before any request. Allow 2-3 minutes on a cold pull, ~30s if the image is
-   already local. It is not hung:
-   until curl -sf localhost:11500/health >/dev/null; do sleep 2; done
-
-2. mkdir laya-play && cd laya-play && bun init -y && bun add @ouijan/laya-client
-
-3. Write index.ts. Start from the example at
-   https://github.com/ouijan/laya-serve#3-write-the-demo and copy it as-is;
-   it is typechecked against the published client, so don't write your own
-   from the type definitions. Then ask me what decision I want to make and
-   adapt the `state` and `questions` to it. If I don't answer, leave the
-   support triage example alone.
-
-4. Run it with `bun run index.ts` and show me the real output. Don't finish by
-   telling me to start the server and try it myself.
-
-5. Tell me which lines to edit to ask it different questions, and remind me
-   that `docker rm -f laya` stops the server when I'm done.
+Set up a sandbox for me to try Laya, following
+https://github.com/ouijan/laya-serve/blob/main/AGENTS.md
 ```
 
-### Without TypeScript
+It will ask what decision you want to make, then run the thing and show you
+the output.
+
+## Without TypeScript
 
 It's an HTTP API, so curl is enough:
 
