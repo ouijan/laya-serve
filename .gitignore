@@ -29,3 +29,6 @@ node_modules/
 
 # Agent tooling state
 .pi/
+
+# Copied in by prepack so the npm tarball ships it.
+clients/typescript/LICENSE

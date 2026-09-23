@@ -29,7 +29,8 @@
     "compile": "tsc -p tsconfig.build.json",
     "build": "bun run spec && bun run generate && bun run compile",
     "typecheck": "tsc --noEmit",
-    "check": "bun run typecheck"
+    "check": "bun run typecheck",
+    "prepack": "cp ../../LICENSE ./LICENSE"
   },
   "dependencies": {
     "openapi-fetch": "^0.14.0"
