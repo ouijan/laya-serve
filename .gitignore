@@ -27,6 +27,11 @@ dist/
 # Node (clients/typescript)
 node_modules/
 
+# The quickstart resolves @ouijan/laya-client@latest on purpose, so that a
+# breaking client release fails the example the README tells people to paste.
+# A committed lockfile would pin it and hide exactly that.
+examples/typescript-quickstart/bun.lock
+
 # Agent tooling state
 .pi/
 

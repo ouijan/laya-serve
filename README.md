@@ -26,16 +26,166 @@ script and language it detects, and that decision is exposed here too.
 
 [ts]: https://docs.typesafe.ai/introduction
 
-## Getting started
+## Quickstart
 
-The image has the `english` checkpoint baked in, so this needs no volume, no
-model download and no GPU:
+**You do not need to clone this repo.** The server is a container and the
+client is on npm. This takes about a minute, needs no GPU and downloads no
+checkpoint — the `english` one is baked into the image.
+
+### 1. Start the server
 
 ```bash
-docker run -d -p 127.0.0.1:11500:11500 ghcr.io/ouijan/laya-serve
+docker run -d --name laya -p 127.0.0.1:11500:11500 ghcr.io/ouijan/laya-serve
+until curl -sf localhost:11500/health >/dev/null; do sleep 2; done
 ```
 
-Ask it something:
+The first pull is ~2GB. `docker run -d` returns before the checkpoint is
+resident, which takes another ~30s, so wait for `/health` rather than
+firing straight into a request.
+
+### 2. Scaffold a project
+
+```bash
+mkdir laya-play && cd laya-play
+bun init -y
+bun add @ouijan/laya-client
+```
+
+### 3. Write the demo
+
+```bash
+cat > index.ts <<'EOF'
+import {
+	type Answer,
+	createLayaClient,
+	isChoice,
+	isNoul,
+	isScore,
+} from "@ouijan/laya-client";
+
+const laya = createLayaClient({ baseUrl: "http://localhost:11500" });
+
+// Edit this: the situation you want decided.
+const state =
+	"We were billed twice for March and nobody has replied in 3 days. If this is not fixed we will move to a competitor.";
+
+// Edit these: every question is answered in the same forward pass.
+const { answers, routing, usage } = await laya.systemOne({
+	state,
+	questions: {
+		department: {
+			type: "choice",
+			instructions: "Which team should handle this?",
+			criteria: {
+				billing: "payments, refunds, invoices",
+				technical: "bugs and integrations",
+				sales: "pricing and accounts",
+			},
+		},
+		frustration: {
+			type: "score",
+			instructions: "How frustrated the customer appears",
+			criteria: ["Calm", "Frustrated but civil", "Very angry"],
+		},
+		churn_risk: {
+			type: "noul",
+			instructions: "The customer threatens to leave",
+		},
+	},
+});
+
+/** `answers` is a union discriminated on `type`; narrow it and the fields follow. */
+function describe(answer: Answer): string {
+	if (isChoice(answer)) return answer.choice;
+	if (isScore(answer)) return answer.score.toFixed(2);
+	if (isNoul(answer)) return answer.noul.toFixed(4);
+	return "unknown answer type";
+}
+
+for (const [id, answer] of Object.entries(answers)) {
+	const confidence = answer.confidence.toFixed(2);
+	console.log(`${id.padEnd(12)} ${describe(answer)}  (confidence ${confidence})`);
+}
+
+console.log(`\nanswered by ${routing?.model}: ${routing?.reason}`);
+console.log(`${usage.input_tokens} input tokens in, ${usage.output_tokens} out`);
+EOF
+```
+
+### 4. Run it
+
+```bash
+bun run index.ts
+```
+
+```
+department   billing  (confidence 0.91)
+frustration  1.55  (confidence 0.30)
+churn_risk   0.8761  (confidence 0.88)
+
+answered by english: English Latin text
+178 input tokens in, 0 out
+```
+
+Requests take well under a second on CPU once the checkpoint is resident.
+
+### 5. Change it
+
+The questions are the interesting part. Edit `state` and `questions`, then run
+it again. Adding a fourth question costs nothing: they are all answered in the
+same forward pass, and `usage.output_tokens` stays at zero because nothing is
+generated.
+
+Done with it:
+
+```bash
+docker rm -f laya
+```
+
+The same example lives at
+[`examples/typescript-quickstart`](examples/typescript-quickstart) if you'd
+rather clone than paste. Interactive docs are at
+`http://localhost:11500/docs`, where the pre-filled example is a real payload:
+"Try it out" works without editing it.
+
+### Or have an agent do it
+
+Paste this into Claude Code, Codex, OpenCode or whatever you use. It's worded
+to head off the two things agents get wrong here: cloning this repo to work
+inside it, and handing back a script they never ran.
+
+```text
+Set up a TypeScript sandbox so I can play with Laya, a System One decision
+engine. Work in a new folder in my current directory.
+
+Do NOT clone github.com/ouijan/laya-serve. The server is a public container
+and the client is a public npm package; you need neither the source nor a GPU.
+
+1. Start the server:
+   docker run -d --name laya -p 127.0.0.1:11500:11500 ghcr.io/ouijan/laya-serve
+   The first pull is ~2GB. `docker run -d` returns before the model is loaded,
+   so wait for readiness before any request (~30s):
+   until curl -sf localhost:11500/health >/dev/null; do sleep 2; done
+
+2. mkdir laya-play && cd laya-play && bun init -y && bun add @ouijan/laya-client
+
+3. Write index.ts. Use createLayaClient({ baseUrl: "http://localhost:11500" })
+   and await laya.systemOne({ state, questions }). Ask me what decision I want
+   to make and write the questions for it. If I don't answer, use a customer
+   support triage example with one `choice`, one `score` and one `noul`
+   question. Narrow the answers with isChoice / isScore / isNoul and print
+   each answer with its confidence, plus routing.model and routing.reason.
+   The API is documented at https://github.com/ouijan/laya-serve#quickstart
+
+4. Run it with `bun run index.ts` and show me the real output. Don't finish by
+   telling me to start the server and try it myself.
+
+5. Then tell me which lines to edit to ask it different questions.
+```
+
+### Without TypeScript
+
+It's an HTTP API, so curl is enough:
 
 ```bash
 curl -s localhost:11500/v1/systemone -H 'Content-Type: application/json' -d '{
@@ -73,26 +223,6 @@ curl -s localhost:11500/v1/systemone -H 'Content-Type: application/json' -d '{
 
 (Trimmed: each answer also carries `action.act_probability`, and `routing`
 includes the script/language detection behind the decision.)
-
-Interactive docs are at `http://localhost:11500/docs`, and the example there
-is a real payload: "Try it out" works without editing it.
-
-From TypeScript:
-
-```bash
-npm add @ouijan/laya-client
-```
-
-```ts
-import { createLayaClient, isChoice } from "@ouijan/laya-client";
-
-const laya = createLayaClient({ baseUrl: "http://localhost:11500" });
-const { answers } = await laya.systemOne({ state, questions });
-
-if (isChoice(answers.department)) {
-  console.log(answers.department.choice); // "billing"
-}
-```
 
 ## Endpoints
 
@@ -140,41 +270,21 @@ the [upstream benchmarks](https://github.com/NandhaKishorM/laya#why-route-the-ev
 
 ## TypeScript client
 
-[`clients/typescript`](clients/typescript) is generated from this server's
+[`@ouijan/laya-client`](clients/typescript) is generated from this server's
 OpenAPI spec, so the types can't drift from the API. Names mirror the TypeSafe
 SDK, so moving between this and the hosted API is a change of import.
 
-```ts
-const { answers, routing, usage } = await laya.systemOne({
-  state: "We were billed twice for March. We'll move to a competitor.",
-  questions: {
-    department: {
-      type: "choice",
-      instructions: "Which team should handle this?",
-      criteria: { billing: "invoices, refunds", technical: "bugs" },
-    },
-    churn_risk: { type: "noul", instructions: "The customer threatens to leave" },
-  },
-});
-```
-
 `answers` is a discriminated union on `type`: narrow with `isChoice`,
-`isScore` or `isNoul` and the remaining fields follow.
+`isScore` or `isNoul` and the remaining fields follow. Non-2xx responses throw
+`LayaError`. See the [client README](clients/typescript/README.md) for the
+full surface.
 
-Regenerate after changing an endpoint:
+## Running it
 
-```bash
-cd clients/typescript && bun run build
-```
-
-## Docker
+### Docker
 
 Published from `main` as a manifest list covering amd64 and arm64, so a pull
-resolves to the right architecture. Build it yourself with:
-
-```bash
-docker build -t laya-serve .
-```
+resolves to the right architecture.
 
 CPU only, deliberately: the container is meant to sit next to Ollama and leave
 the card to it. For GPU, run on the host with `--gpu` rather than
@@ -198,7 +308,7 @@ container still downloading one isn't sent traffic it can't serve.
 Publish to `127.0.0.1` as above unless you mean to expose it. The container
 listens on `0.0.0.0` because it has to, and there is no auth.
 
-## Running on the host
+### On the host
 
 Needs Python 3.10–3.13 (torch has no 3.14 wheels yet). `mise.toml` pins the
 interpreter and `uv`, and creates `.venv` on `cd` into the directory:
@@ -207,7 +317,7 @@ interpreter and `uv`, and creates `.venv` on `cd` into the directory:
 mise trust
 mise install      # python 3.13 + uv, creates .venv
 mise run install  # uv pip install -e '.[dev]'
-laya-serve --cpu
+mise run serve    # laya-serve --cpu
 ```
 
 Without mise, any venv on Python ≤3.13 works. A Homebrew Python refuses a
@@ -216,6 +326,9 @@ system-wide install (PEP 668), so the venv isn't optional:
 ```bash
 uv venv --python 3.13 && uv pip install -e .
 ```
+
+`laya-serve` is only on `PATH` inside that venv. Outside a mise shell, call it
+as `.venv/bin/laya-serve`.
 
 ### Run modes
 
@@ -253,52 +366,6 @@ User=youruser
 WantedBy=multi-user.target
 ```
 
-## Releasing
-
-One tag ships everything. Bump `version` in `pyproject.toml` and
-`clients/typescript/package.json` to the same number, regenerate the spec
-(it embeds the version, and a test enforces that), then tag:
-
-```bash
-cd clients/typescript && bun run build && cd ../..
-git commit -am "v0.2.0" && git tag v0.2.0 && git push --tags
-```
-
-That publishes `ghcr.io/ouijan/laya-serve:0.2.0` and
-`@ouijan/laya-client@0.2.0` from the same commit, plus a copy of the client
-on GitHub Packages. `main` also publishes `:latest` on every merge. Tests fail
-if the two manifests disagree or the spec is stale.
-
-npm publishing uses OIDC trusted publishing, so there is no npm token in the
-repo. The trusted publisher is configured on the package at npmjs.com and
-pinned to this repo and `publish-client.yml`.
-
-## Development
-
-```bash
-mise run test   # or: pytest
-```
-
-22 tests, ~0.1s, no checkpoint download and no GPU: the engine is stubbed with
-laya's recorded output shapes. They cover the response envelope, the answer
-shape of each question type, the laya extras, `state` as string/object/turns,
-routing passthrough, and the 422/500 paths.
-
-Two are drift guards rather than behaviour:
-
-- the `/docs` example must be a valid request, and must actually run
-- `clients/typescript/openapi.json` must match the code, so the TypeScript
-  client can't be generated from a stale spec
-
-To see real model output against a running server:
-
-```bash
-python scripts/demo.py   # or: python scripts/demo.py http://your-box:11500
-```
-
-That's a demo, not a test: it prints and asserts nothing. It reads the example
-out of the live server's spec, so what `/docs` shows is what it runs.
-
 ## Caveats
 
 - No auth, no TLS. Localhost or behind a reverse proxy.
@@ -308,6 +375,11 @@ out of the live server's spec, so what `/docs` shows is what it runs.
   before trusting the numbers.
 - Laya warns on load that some checkpoints ship temperatures outside the
   calibrated range. Treat `confidence` from those buckets as uncalibrated.
+
+## Contributing
+
+Tests, the spec-to-client pipeline and the release process are in
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Credits
 

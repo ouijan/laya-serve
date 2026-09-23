@@ -7,6 +7,32 @@ Names mirror the [TypeSafe SDK](https://docs.typesafe.ai/sdk) — `systemOne`,
 `ChoiceAnswer`, `ScoreAnswer`, `NoulAnswer` — so swapping between this server
 and the hosted Jev API is a change of import, not of code.
 
+## Quickstart
+
+You need a server. It's a container, so this needs no GPU and no checkpoint
+download beyond the image:
+
+```bash
+docker run -d --name laya -p 127.0.0.1:11500:11500 ghcr.io/ouijan/laya-serve
+until curl -sf localhost:11500/health >/dev/null; do sleep 2; done
+```
+
+`docker run -d` returns before the checkpoint is resident, which takes ~30s,
+hence the wait. Then:
+
+```bash
+mkdir laya-play && cd laya-play
+bun init -y
+bun add @ouijan/laya-client
+```
+
+A complete runnable `index.ts` is in the [repo README][quickstart], and as a
+folder at [`examples/typescript-quickstart`][example]. The rest of this page
+is the API surface.
+
+[quickstart]: https://github.com/ouijan/laya-serve#quickstart
+[example]: https://github.com/ouijan/laya-serve/tree/main/examples/typescript-quickstart
+
 ## Install
 
 Published to the public npm registry:
@@ -82,7 +108,7 @@ routing?.reason;  // "non-Latin script (cyrillic, 100% of letters); ..."
 
 `laya.route(...)` returns just that decision, with no forward pass.
 
-### Errors
+## Errors
 
 Non-2xx responses throw `LayaError`, carrying `status` and `detail`.
 
@@ -113,9 +139,9 @@ git tag v0.2.0 && git push --tags
 bun run build   # spec -> types -> dist
 ```
 
-`bun run spec` alone rewrites `openapi.json` and needs the Python package;
-`bun run compile` alone rebuilds `dist/` and does not.
+`bun run spec` alone rewrites `openapi.json` and needs the Python package; it
+imports the app but never starts it, so no checkpoint is downloaded and no GPU
+is needed. `bun run compile` alone rebuilds `dist/` and needs no Python.
 
-`bun run spec` alone rewrites `openapi.json`; it imports the app but never
-starts it, so no checkpoint is downloaded and no GPU is needed. Commit both
-`openapi.json` and `src/schema.ts` so consumers don't need Python.
+Commit both `openapi.json` and `src/schema.ts` so consumers don't need Python.
+See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the rest.
