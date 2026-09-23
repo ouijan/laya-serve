@@ -2,7 +2,7 @@
 
 import pytest
 
-from laya_serve.api import EXAMPLE_REQUEST
+from laya_serve.api import EXAMPLE_REQUEST, NoulAnswer
 
 SYSTEMONE = "/v1/systemone"
 
@@ -60,13 +60,22 @@ def test_noul_answer_is_a_probability(client):
     assert 0.0 <= answers["churn_risk"]["noul"] <= 1.0
 
 
+def test_noul_confidence_is_required(client):
+    """Optional would make every client null-check a value laya always sends."""
+    answers = client.post(SYSTEMONE, json=EXAMPLE_REQUEST).json()["answers"]
+    assert isinstance(answers["churn_risk"]["confidence"], float)
+
+    schema = NoulAnswer.model_json_schema()
+    assert "confidence" in schema["required"]
+
+
 def test_laya_extras_survive_the_response_model(client):
     """The superset we deliberately keep over Jev's fields."""
     body = client.post(SYSTEMONE, json=EXAMPLE_REQUEST).json()
 
     assert body["routing"]["model"] == "english"
     assert body["answers"]["department"]["action"]["act_probability"] == 1.0
-    assert body["answers"]["churn_risk"]["confidence"] is not None
+    assert body["answers"]["churn_risk"]["confidence"] == 0.9086
 
 
 @pytest.mark.parametrize(

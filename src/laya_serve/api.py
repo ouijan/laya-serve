@@ -112,8 +112,10 @@ class ScoreAnswer(BaseModel):
 class NoulAnswer(BaseModel):
     type: Literal["noul"]
     noul: float = Field(..., description="Probability the statement is true, 0-1")
-    # laya extra; Jev's noul has no confidence.
-    confidence: float | None = None
+    # laya extra; Jev's noul has no confidence. laya always sends one, so it is
+    # required here: an optional field would make every consumer null-check a
+    # value that is never null.
+    confidence: float = Field(..., description="How peaked the distribution is, 0-1")
     action: Action | None = None
 
 

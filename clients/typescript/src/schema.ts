@@ -125,8 +125,11 @@ export interface components {
         /** NoulAnswer */
         NoulAnswer: {
             action?: components["schemas"]["Action"] | null;
-            /** Confidence */
-            confidence?: number | null;
+            /**
+             * Confidence
+             * @description How peaked the distribution is, 0-1
+             */
+            confidence: number;
             /**
              * Noul
              * @description Probability the statement is true, 0-1
