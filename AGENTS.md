@@ -23,8 +23,11 @@ bun run index.ts
 ```
 
 Copy `index.ts` from [`examples/typescript-quickstart`](examples/typescript-quickstart)
-or the README block; they are the same file. Adapt the `state` and
-`questions` to whatever the user actually asked about.
+or the README block verbatim; they are the same file, and it is typechecked
+against the published client. Don't write your own from the type definitions:
+hand-rolled versions hit narrowing problems this one doesn't. Adapt the
+`state` and `questions` to whatever the user actually asked about, and tell
+them `docker rm -f laya` stops the server.
 
 **Changing the server, the client or the docs.** Now you are a contributor.
 Read [CONTRIBUTING.md](CONTRIBUTING.md) first.
@@ -36,8 +39,8 @@ always means the first one.
 
 - **Wait for `/health`.** `docker run -d` returns in a second; the checkpoint
   takes ~30s more to become resident. A request before then fails.
-- **The first pull is ~2GB.** Check `docker images | grep laya` before
-  assuming you need to download it.
+- **A cold pull is ~2GB and 2-3 minutes** before that 30s even starts. Check
+  `docker images | grep laya` first, and don't treat a slow pull as a hang.
 - **Nothing is on your `PATH`.** `pytest` and `laya-serve` live in `.venv/bin`
   and only resolve inside a mise shell. Use `mise run test` and
   `mise run serve`, or prefix with `.venv/bin/`.

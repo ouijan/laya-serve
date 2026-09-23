@@ -39,9 +39,13 @@ docker run -d --name laya -p 127.0.0.1:11500:11500 ghcr.io/ouijan/laya-serve
 until curl -sf localhost:11500/health >/dev/null; do sleep 2; done
 ```
 
-The first pull is ~2GB. `docker run -d` returns before the checkpoint is
-resident, which takes another ~30s, so wait for `/health` rather than
-firing straight into a request.
+`docker run -d` returns before the checkpoint is resident, so wait for
+`/health` rather than firing straight into a request. From a cold start that
+wait is ~2-3 minutes: the image is ~2GB and the checkpoint takes ~30s to load
+once it's pulled. With the image already cached it's the 30s.
+
+It is not hung. Watch it with `docker logs -f laya` if you'd rather see
+something happen.
 
 ### 2. Scaffold a project
 
@@ -163,24 +167,25 @@ and the client is a public npm package; you need neither the source nor a GPU.
 
 1. Start the server:
    docker run -d --name laya -p 127.0.0.1:11500:11500 ghcr.io/ouijan/laya-serve
-   The first pull is ~2GB. `docker run -d` returns before the model is loaded,
-   so wait for readiness before any request (~30s):
+   `docker run -d` returns before the model is loaded, so wait for readiness
+   before any request. Allow 2-3 minutes on a cold pull, ~30s if the image is
+   already local. It is not hung:
    until curl -sf localhost:11500/health >/dev/null; do sleep 2; done
 
 2. mkdir laya-play && cd laya-play && bun init -y && bun add @ouijan/laya-client
 
-3. Write index.ts. Use createLayaClient({ baseUrl: "http://localhost:11500" })
-   and await laya.systemOne({ state, questions }). Ask me what decision I want
-   to make and write the questions for it. If I don't answer, use a customer
-   support triage example with one `choice`, one `score` and one `noul`
-   question. Narrow the answers with isChoice / isScore / isNoul and print
-   each answer with its confidence, plus routing.model and routing.reason.
-   The API is documented at https://github.com/ouijan/laya-serve#quickstart
+3. Write index.ts. Start from the example at
+   https://github.com/ouijan/laya-serve#3-write-the-demo and copy it as-is;
+   it is typechecked against the published client, so don't write your own
+   from the type definitions. Then ask me what decision I want to make and
+   adapt the `state` and `questions` to it. If I don't answer, leave the
+   support triage example alone.
 
 4. Run it with `bun run index.ts` and show me the real output. Don't finish by
    telling me to start the server and try it myself.
 
-5. Then tell me which lines to edit to ask it different questions.
+5. Tell me which lines to edit to ask it different questions, and remind me
+   that `docker rm -f laya` stops the server when I'm done.
 ```
 
 ### Without TypeScript
